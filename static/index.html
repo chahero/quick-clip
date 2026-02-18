@@ -1172,11 +1172,39 @@
       }
     };
 
+    const copyTextToClipboard = async (text) => {
+      if (!text) {
+        throw new Error("No text to copy.");
+      }
+
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      textarea.style.left = "-9999px";
+      textarea.style.top = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      const succeeded = document.execCommand("copy");
+      document.body.removeChild(textarea);
+
+      if (!succeeded) {
+        throw new Error("Clipboard API and fallback copy failed.");
+      }
+    };
+
     const copyImageUrlToClipboard = async (item) => {
       if (!item?.url) {
         throw new Error("No image URL available.");
       }
-      await navigator.clipboard.writeText(item.url);
+      await copyTextToClipboard(item.url);
       applyCopyStatus("Image URL copied.");
     };
 
@@ -1634,7 +1662,7 @@
 
       if (successCount > 0 && latestData?.url) {
         try {
-          await navigator.clipboard.writeText(latestData.url);
+          await copyTextToClipboard(latestData.url);
           setUploadStatus(
             `${successCount}/${total} uploaded. Copied latest URL to clipboard.` +
               (failedInThisBatch > 0
@@ -1696,7 +1724,7 @@
     tabGallery.addEventListener("click", () => switchTab("gallery"));
     copyBtn.addEventListener("click", async () => {
       if (!urlBox.textContent || !urlBox.textContent.startsWith("http")) return;
-      await navigator.clipboard.writeText(urlBox.textContent);
+      await copyTextToClipboard(urlBox.textContent);
       setUploadStatus("Image URL copied.");
     });
     refreshBtn.addEventListener("click", () => resetList());
