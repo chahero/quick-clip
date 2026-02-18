@@ -385,6 +385,12 @@
       font-size: 14px;
       font-weight: 700;
     }
+    .zone p,
+    .hint,
+    .status,
+    .meta {
+      text-wrap: pretty;
+    }
 
     @media (max-width: 768px) {
       body {
@@ -413,6 +419,15 @@
       .status {
         font-size: 13px;
       }
+      .url {
+        min-height: 42px;
+      }
+      .row {
+        gap: 6px;
+      }
+      .tabs {
+        gap: 6px;
+      }
       .item-main {
         grid-template-columns: 54px 1fr;
         gap: 8px;
@@ -431,6 +446,12 @@
       .gallery-head .row,
       .row {
         align-items: stretch;
+      }
+      .item-row {
+        gap: 6px;
+      }
+      .gallery-title {
+        gap: 2px;
       }
     }
 
@@ -498,6 +519,39 @@
       }
       .modal-actions .small-btn {
         width: 100%;
+      }
+      .modal-backdrop {
+        padding: 8px;
+      }
+      .modal-panel h3 {
+        font-size: 16px;
+      }
+      .image-modal-caption {
+        font-size: 12px;
+      }
+      .image-modal #image-modal-close-btn {
+        order: 1;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .zone p {
+        margin: 8px 0;
+      }
+      .zone {
+        padding: 14px 10px;
+      }
+      .item {
+        padding: 8px;
+      }
+      .item-content {
+        gap: 6px;
+      }
+      .item-row .small-btn {
+        min-height: 36px;
+      }
+      .item-link {
+        margin-bottom: 4px;
       }
     }
   </style>
