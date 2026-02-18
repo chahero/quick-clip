@@ -1,6 +1,9 @@
 # quick-clip
 
-`quick-clip` turns local uploads into local URLs for quick sharing and reuse.
+`quick-clip` is a web-based quick clipboard for images.  
+Upload, copy URL/image to clipboard, and manage stored images from a simple gallery UI.
+
+한국어 문서는 [README.ko.md](./README.ko.md)에서 확인할 수 있습니다.
 
 ## Run
 
@@ -27,6 +30,22 @@ For reload during local development:
 ```bash
 LOCAL_BUCKET_RELOAD=true
 ```
+
+## Features
+
+- Upload image files via file picker or drag-and-drop.
+- Generate direct local URLs for quick sharing and clipboard copy.
+- Copy:
+  - image URL
+  - binary image data (image clipboard)
+- Preview uploaded images in a gallery.
+- **Latest uploads** panel for quick recent-file confirmation.
+- **Gallery management**:
+  - pagination with `Load more`
+  - multi-select delete
+  - bulk delete confirmation
+  - mobile-friendly layout for gallery actions
+- `/purge` endpoint exists on backend, but the UI keeps multi-select delete as the main bulk deletion flow.
 
 ## Endpoints
 
