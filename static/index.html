@@ -186,9 +186,9 @@
     .list.grid-view .item {
       width: auto;
     }
-    .list.grid-view .item-main {
+    .list.grid-view .gallery-item-main {
       display: grid;
-      grid-template-columns: 64px 1fr;
+      grid-template-columns: 22px 64px 1fr;
       gap: 10px;
       align-items: center;
     }
@@ -201,7 +201,7 @@
       width: 100%;
       padding: 10px;
     }
-    .list.list-view .item-main {
+    .list.list-view .gallery-item-main {
       display: flex;
       gap: 10px;
       align-items: center;
@@ -270,11 +270,13 @@
       align-items: center;
     }
     .item-select {
-      margin-right: 4px;
-      width: 16px;
-      height: 16px;
+      width: 18px;
+      height: 18px;
       accent-color: var(--accent);
       flex: 0 0 auto;
+      margin: 0;
+      justify-self: center;
+      cursor: pointer;
     }
     .item-main .item-link {
       min-width: 0;
@@ -489,8 +491,8 @@
       .view-btn {
         min-height: 38px;
       }
-      .item-main {
-        grid-template-columns: 54px 1fr;
+      .gallery-item-main {
+        grid-template-columns: 22px 54px 1fr;
         gap: 8px;
       }
       .thumb {
@@ -1161,7 +1163,8 @@
       row.className = "item";
 
       const main = document.createElement("div");
-      main.className = "item-main";
+      main.className = "item-main gallery-item-main";
+      const select = createGallerySelectInput(item);
 
       const thumb = document.createElement("img");
       thumb.src = item.thumbnail_url || item.url;
@@ -1221,13 +1224,13 @@
         : `ttl: ${item.ttl_seconds_remaining}s`;
       const created = formatCreatedAt(item.created_at);
       meta.textContent = `size ${formatBytes(item.size_bytes)} | ${created} | ${ttl}`;
-      actions.appendChild(createGallerySelectInput(item));
       actions.appendChild(link);
       actions.appendChild(copy);
       actions.appendChild(copyImage);
       actions.appendChild(del);
       content.appendChild(actions);
       content.appendChild(meta);
+      main.appendChild(select);
       main.appendChild(thumb);
       main.appendChild(content);
       row.appendChild(main);
@@ -1237,6 +1240,8 @@
     const renderListItem = (item) => {
       const row = document.createElement("div");
       row.className = "item";
+
+      const select = createGallerySelectInput(item);
 
       const thumb = document.createElement("img");
       thumb.src = item.thumbnail_url || item.url;
@@ -1298,7 +1303,6 @@
         openDeleteModal(item, row, del);
       });
 
-      actions.appendChild(createGallerySelectInput(item));
       actions.appendChild(copy);
       actions.appendChild(copyImage);
       actions.appendChild(del);
@@ -1308,7 +1312,8 @@
       content.appendChild(actions);
 
       const main = document.createElement("div");
-      main.className = "item-main";
+      main.className = "item-main gallery-item-main";
+      main.appendChild(select);
       main.appendChild(thumb);
       main.appendChild(content);
       row.appendChild(main);
