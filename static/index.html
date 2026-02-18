@@ -889,6 +889,12 @@
       gallerySelectedCount.textContent = `${selectedCount} selected`;
       galleryDeleteSelectedBtn.textContent = `Delete selected (${selectedCount})`;
 
+      const itemCheckboxes = galleryList.querySelectorAll(".item-select");
+      itemCheckboxes.forEach((checkbox) => {
+        const key = checkbox.dataset.galleryItemKey;
+        checkbox.checked = key ? gallerySelected.has(key) : false;
+      });
+
       const keys = Array.from(galleryItemMap.keys());
       const allVisibleSelected = keys.length > 0 && keys.every((key) => gallerySelected.has(key));
 
@@ -903,6 +909,9 @@
 
       checkbox.type = "checkbox";
       checkbox.className = "item-select";
+      if (key) {
+        checkbox.dataset.galleryItemKey = key;
+      }
       checkbox.checked = key ? gallerySelected.has(key) : false;
       checkbox.setAttribute("aria-label", `Select ${item?.filename || "image"}`);
       checkbox.disabled = !key;
