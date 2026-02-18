@@ -664,13 +664,16 @@
         <p>or</p>
         <label class="btn">
           Select file
-          <input id="file-input" type="file" accept="image/*" />
+          <input id="file-input" type="file" accept="image/*" multiple />
         </label>
       </div>
 
       <div class="row">
         <div id="url-box" class="url">Ready.</div>
         <button id="copy-btn" class="btn" disabled>Copy URL</button>
+      </div>
+      <div id="retry-row" class="row" style="margin-top: 8px; margin-bottom: 0;">
+        <button id="retry-failed-btn" class="btn small-btn secondary" type="button" hidden>Retry failed uploads</button>
       </div>
 
       <div id="preview-box" class="preview">
@@ -750,6 +753,7 @@
       const copyBtn = document.getElementById("copy-btn");
       const previewBox = document.getElementById("preview-box");
       const preview = document.getElementById("preview");
+    const retryFailedBtn = document.getElementById("retry-failed-btn");
 
     const gallerySummary = document.getElementById("gallery-summary");
     const galleryList = document.getElementById("gallery-list");
@@ -781,6 +785,9 @@
     let deleteState = null;
     let imageState = null;
     let imagePrevFocus = { target: null };
+    const uploadQueue = [];
+    const failedUploadQueue = [];
+    let isUploadInProgress = false;
     const allowed = (file) => file?.type.startsWith("image/");
 
     const setUploadStatus = (text, isError = false) => {
@@ -1272,45 +1279,148 @@
       await loadList(false);
     };
 
-    const upload = async (file) => {
+    const uploadSingleFile = async (file) => {
       if (!allowed(file)) {
-        setUploadStatus("Only image files are supported.");
-        return;
+        throw new Error("Only image files are supported.");
       }
 
       const form = new FormData();
       form.append("file", file);
-      setUploadStatus("Uploading...");
+
+      const resp = await fetch("/upload", { method: "POST", body: form });
+      const data = await resp.json();
+      if (!resp.ok) {
+        throw new Error(data?.detail || "Upload failed.");
+      }
+
+      return data;
+    };
+
+    const applyUploadedFileToUi = (data) => {
+      urlBox.textContent = data.url;
+      copyBtn.disabled = false;
+      preview.src = data.url;
+      previewBox.style.display = "block";
+      preview.style.cursor = "zoom-in";
+      preview.onclick = () => {
+        openImageModal({ filename: data.filename, url: data.url });
+      };
+    };
+
+    const enqueueUploadFiles = (fileList) => {
+      const files = [...fileList].filter(Boolean);
+      if (!files.length) return;
+
+      const validFiles = files.filter(allowed);
+      const invalidCount = files.length - validFiles.length;
+
+      if (validFiles.length === 0) {
+        setUploadStatus("Only image files are supported.");
+        return;
+      }
+
+      if (invalidCount > 0) {
+        setUploadStatus(`Skipped ${invalidCount} unsupported file${invalidCount > 1 ? "s" : ""}.`);
+      }
+
+      validFiles.forEach((file) => {
+        uploadQueue.push(file);
+      });
+      if (isUploadInProgress) return;
+      void processUploadQueue();
+    };
+
+    const refreshAfterUploads = async (didUploadAny) => {
+      if (!didUploadAny) return;
+      loadRecentUploads();
+      galleryNeedsRefresh = true;
+      if (activeTab === "gallery") {
+        await resetList();
+        galleryNeedsRefresh = false;
+      }
+    };
+
+    const updateRetryButton = () => {
+      if (failedUploadQueue.length > 0) {
+        const count = failedUploadQueue.length;
+        retryFailedBtn.textContent = `Retry ${count} failed upload${count > 1 ? "s" : ""}`;
+        retryFailedBtn.hidden = false;
+      } else {
+        retryFailedBtn.hidden = true;
+      }
+    };
+
+    const processUploadQueue = async () => {
+      if (isUploadInProgress) return;
+      if (uploadQueue.length === 0) {
+        updateRetryButton();
+        return;
+      }
+
+      const batch = [...uploadQueue];
+      uploadQueue.length = 0;
+      isUploadInProgress = true;
       copyBtn.disabled = true;
       previewBox.style.display = "none";
+      retryFailedBtn.hidden = true;
 
-      try {
-        const resp = await fetch("/upload", { method: "POST", body: form });
-        const data = await resp.json();
-        if (!resp.ok) throw new Error(data.detail || "Upload failed.");
+      const failedBefore = failedUploadQueue.length;
+      let successCount = 0;
+      let latestData = null;
+      const total = batch.length;
 
-        urlBox.textContent = data.url;
-        copyBtn.disabled = false;
-        setUploadStatus("Uploaded and copied to clipboard.");
-        await navigator.clipboard.writeText(data.url);
+      for (let i = 0; i < batch.length; i += 1) {
+        const file = batch[i];
+        setUploadStatus(`Uploading ${i + 1}/${total}: ${file.name || "image"}`);
 
-        preview.src = data.url;
-        previewBox.style.display = "block";
-        preview.style.cursor = "zoom-in";
-        preview.onclick = () => {
-          openImageModal({ filename: data.filename, url: data.url });
-        };
-
-        loadRecentUploads();
-
-        galleryNeedsRefresh = true;
-        if (activeTab === "gallery") {
-          await resetList();
-          galleryNeedsRefresh = false;
+        try {
+          const data = await uploadSingleFile(file);
+          successCount += 1;
+          latestData = data;
+          applyUploadedFileToUi(data);
+        } catch (error) {
+          failedUploadQueue.push(file);
+          continue;
         }
-      } catch (err) {
-        setUploadStatus(err.message || "Upload failed.", true);
       }
+
+      await refreshAfterUploads(successCount > 0);
+
+      const failedInThisBatch = failedUploadQueue.length - failedBefore;
+
+      if (successCount > 0 && latestData?.url) {
+        try {
+          await navigator.clipboard.writeText(latestData.url);
+          setUploadStatus(
+            `${successCount}/${total} uploaded. Copied latest URL to clipboard.` +
+              (failedInThisBatch > 0
+                ? ` ${failedInThisBatch} failed; retry available.`
+                : ""),
+            failedInThisBatch > 0,
+          );
+        } catch (error) {
+          setUploadStatus(error.message || "Uploaded, but failed to copy latest URL.", true);
+        }
+      } else if (failedInThisBatch > 0) {
+        setUploadStatus(`Upload failed for ${failedInThisBatch} file${failedInThisBatch > 1 ? "s" : ""}.`, true);
+      } else {
+        setUploadStatus("Upload failed.", true);
+      }
+
+      isUploadInProgress = false;
+      updateRetryButton();
+
+      if (uploadQueue.length > 0) {
+        await processUploadQueue();
+      }
+    };
+
+    const retryFailedUploads = () => {
+      if (!failedUploadQueue.length) return;
+      const retryItems = [...failedUploadQueue];
+      failedUploadQueue.length = 0;
+      retryItems.forEach((file) => uploadQueue.push(file));
+      void processUploadQueue();
     };
 
     function openImageModal(item) {
@@ -1350,8 +1460,8 @@
     loadMoreBtn.addEventListener("click", () => loadList(true));
 
     fileInput.addEventListener("change", (e) => {
-      const file = e.target.files?.[0];
-      if (file) upload(file);
+      if (!e.target.files) return;
+      enqueueUploadFiles(e.target.files);
       e.target.value = "";
     });
 
@@ -1363,16 +1473,17 @@
     zone.addEventListener("drop", (e) => {
       e.preventDefault();
       zone.classList.remove("drag");
-      const file = e.dataTransfer.files?.[0];
-      if (file) upload(file);
+      if (!e.dataTransfer.files) return;
+      enqueueUploadFiles(e.dataTransfer.files);
     });
 
     window.addEventListener("paste", (e) => {
       const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith("image/"));
       if (!item) return;
       const file = item.getAsFile();
-      if (file) upload(file);
+      if (file) enqueueUploadFiles([file]);
     });
+    retryFailedBtn.addEventListener("click", retryFailedUploads);
 
     const savedTab = localStorage.getItem("quick-clip-tab");
     setGalleryViewMode("list");
