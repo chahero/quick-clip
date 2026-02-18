@@ -649,7 +649,7 @@
 <body>
   <main class="app">
     <h1>quick-clip</h1>
-    <p class="hint">Upload files (images, text, PDFs, etc.) to create local URLs instantly and reuse them right away.</p>
+    <p class="hint">Upload images to create local URLs instantly and reuse them right away.</p>
 
     <div class="tabs">
       <button id="tab-upload" class="tab-btn active" type="button">Upload</button>
@@ -726,7 +726,10 @@
     <div id="delete-all-modal" class="modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="delete-all-modal-title">
       <div class="modal-panel">
         <h3 id="delete-all-modal-title">Delete all images</h3>
-        <p>Are you sure you want to delete all images? This cannot be undone.</p>
+        <p>
+          <strong>Warning:</strong>
+          Are you sure you want to delete all images? This cannot be undone.
+        </p>
         <div class="modal-actions">
           <button id="delete-all-cancel-btn" class="btn small-btn secondary" type="button">Cancel</button>
           <button id="delete-all-confirm-btn" class="small-btn danger" type="button">Delete all</button>
