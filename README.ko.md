@@ -56,3 +56,8 @@ LOCAL_BUCKET_RELOAD=true
 - `GET /health`: 헬스체크
 
 별도 CLI 실행 스크립트는 필요하지 않습니다.
+
+## 스크린샷
+
+![업로드 및 복사](./docs/screenshots/upload.png)
+![갤러리 및 다중 삭제](./docs/screenshots/gallery.png)

@@ -57,3 +57,8 @@ LOCAL_BUCKET_RELOAD=true
 - `GET /health`: Health check
 
 No separate CLI launcher script is required.
+
+## Screenshots
+
+![Upload and copy](./docs/screenshots/upload.png)
+![Gallery and bulk actions](./docs/screenshots/gallery.png)
