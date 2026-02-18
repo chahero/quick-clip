@@ -269,6 +269,13 @@
       gap: 10px;
       align-items: center;
     }
+    .item-select {
+      margin-right: 4px;
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      flex: 0 0 auto;
+    }
     .item-main .item-link {
       min-width: 0;
       width: 100%;
@@ -698,7 +705,9 @@
             <button id="view-grid-btn" class="view-btn active" type="button">Grid</button>
             <button id="view-list-btn" class="view-btn" type="button">List</button>
           </div>
-          <button id="gallery-clear-btn" class="small-btn danger" type="button">Delete all</button>
+          <span id="gallery-selected-count" class="meta">0 selected</span>
+          <button id="gallery-select-all-btn" class="small-btn secondary" type="button" disabled>Select all</button>
+          <button id="gallery-delete-selected-btn" class="small-btn danger" type="button" disabled>Delete selected</button>
           <button id="refresh-btn" class="btn small-btn" type="button">Refresh</button>
         </div>
       </div>
@@ -723,16 +732,17 @@
       </div>
     </div>
 
-    <div id="delete-all-modal" class="modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="delete-all-modal-title">
+    <div id="delete-selected-modal" class="modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="delete-selected-modal-title">
       <div class="modal-panel">
-        <h3 id="delete-all-modal-title">Delete all images</h3>
+        <h3 id="delete-selected-modal-title">Delete selected images</h3>
         <p>
-          <strong>Warning:</strong>
-          Are you sure you want to delete all images? This cannot be undone.
+          Are you sure you want to delete
+          <strong id="delete-selected-count">0 images</strong>?
+          This cannot be undone.
         </p>
         <div class="modal-actions">
-          <button id="delete-all-cancel-btn" class="btn small-btn secondary" type="button">Cancel</button>
-          <button id="delete-all-confirm-btn" class="small-btn danger" type="button">Delete all</button>
+          <button id="delete-selected-cancel-btn" class="btn small-btn secondary" type="button">Cancel</button>
+          <button id="delete-selected-confirm-btn" class="small-btn danger" type="button">Delete selected</button>
         </div>
       </div>
     </div>
@@ -773,15 +783,18 @@
     const gallerySummary = document.getElementById("gallery-summary");
     const galleryList = document.getElementById("gallery-list");
     const refreshBtn = document.getElementById("refresh-btn");
-    const galleryClearBtn = document.getElementById("gallery-clear-btn");
+    const gallerySelectedCount = document.getElementById("gallery-selected-count");
+    const gallerySelectAllBtn = document.getElementById("gallery-select-all-btn");
+    const galleryDeleteSelectedBtn = document.getElementById("gallery-delete-selected-btn");
     const loadMoreBtn = document.getElementById("load-more");
     const deleteModal = document.getElementById("delete-modal");
     const deleteFilename = document.getElementById("delete-filename");
     const deleteCancelBtn = document.getElementById("delete-cancel-btn");
     const deleteConfirmBtn = document.getElementById("delete-confirm-btn");
-    const deleteAllModal = document.getElementById("delete-all-modal");
-    const deleteAllCancelBtn = document.getElementById("delete-all-cancel-btn");
-    const deleteAllConfirmBtn = document.getElementById("delete-all-confirm-btn");
+    const deleteSelectedModal = document.getElementById("delete-selected-modal");
+    const deleteSelectedCount = document.getElementById("delete-selected-count");
+    const deleteSelectedCancelBtn = document.getElementById("delete-selected-cancel-btn");
+    const deleteSelectedConfirmBtn = document.getElementById("delete-selected-confirm-btn");
     const viewGridBtn = document.getElementById("view-grid-btn");
     const viewListBtn = document.getElementById("view-list-btn");
     const recentList = document.getElementById("recent-list");
@@ -802,10 +815,12 @@
     let galleryViewMode = "list";
     let galleryNeedsRefresh = false;
     let deleteState = null;
-    let isDeletingAll = false;
+    let isDeleteSelectedInProgress = false;
     let imageState = null;
     let imagePrevFocus = { target: null };
-    const deleteAllPrevFocus = { target: null };
+    const selectedAllFocus = { target: null };
+    const gallerySelected = new Set();
+    const galleryItemMap = new Map();
     const uploadQueue = [];
     const failedUploadQueue = [];
     let isUploadInProgress = false;
@@ -862,6 +877,70 @@
       }).format(date);
     };
 
+    const getGalleryItemKey = (item) => {
+      if (item?.url) return item.url;
+      if (item?.filename && item?.created_at) return `${item.filename}|${item.created_at}`;
+      if (item?.filename) return `${item.filename}|${item.size_bytes ?? 0}`;
+      return "";
+    };
+
+    const syncGallerySelectionUi = () => {
+      const selectedCount = gallerySelected.size;
+      gallerySelectedCount.textContent = `${selectedCount} selected`;
+      galleryDeleteSelectedBtn.textContent = `Delete selected (${selectedCount})`;
+
+      const keys = Array.from(galleryItemMap.keys());
+      const allVisibleSelected = keys.length > 0 && keys.every((key) => gallerySelected.has(key));
+
+      galleryDeleteSelectedBtn.disabled = selectedCount === 0;
+      gallerySelectAllBtn.disabled = keys.length === 0;
+      gallerySelectAllBtn.textContent = allVisibleSelected ? "Clear selection" : "Select all";
+    };
+
+    const createGallerySelectInput = (item) => {
+      const checkbox = document.createElement("input");
+      const key = getGalleryItemKey(item);
+
+      checkbox.type = "checkbox";
+      checkbox.className = "item-select";
+      checkbox.checked = key ? gallerySelected.has(key) : false;
+      checkbox.setAttribute("aria-label", `Select ${item?.filename || "image"}`);
+      checkbox.disabled = !key;
+      checkbox.addEventListener("change", (event) => {
+        const checked = event.currentTarget.checked;
+        if (!key) return;
+        if (checked) {
+          gallerySelected.add(key);
+        } else {
+          gallerySelected.delete(key);
+        }
+        syncGallerySelectionUi();
+      });
+      return checkbox;
+    };
+
+    const openDeleteSelectedModal = () => {
+      const selectedCount = gallerySelected.size;
+      if (selectedCount === 0) return;
+      selectedAllFocus.target = document.activeElement;
+
+      deleteSelectedCount.textContent = `${selectedCount} ${selectedCount === 1 ? "image" : "images"}`;
+      deleteSelectedModal.hidden = false;
+      deleteSelectedModal.setAttribute("aria-hidden", "false");
+      window.requestAnimationFrame(() => {
+        deleteSelectedCancelBtn.focus();
+      });
+    };
+
+    const closeDeleteSelectedModal = () => {
+      deleteSelectedModal.hidden = true;
+      deleteSelectedModal.setAttribute("aria-hidden", "true");
+      if (selectedAllFocus.target && typeof selectedAllFocus.target.focus === "function") {
+        selectedAllFocus.target.focus();
+      }
+      selectedAllFocus.target = null;
+    };
+
     const openDeleteModal = (item, row, button) => {
       deleteState = { item, row, button };
       deletePrevFocus.target = document.activeElement;
@@ -883,29 +962,12 @@
       deletePrevFocus.target = null;
     };
 
-    const openDeleteAllModal = () => {
-      deleteAllPrevFocus.target = document.activeElement;
-      deleteAllModal.hidden = false;
-      deleteAllModal.setAttribute("aria-hidden", "false");
-      window.requestAnimationFrame(() => {
-        deleteAllCancelBtn.focus();
-      });
-    };
-
-    const closeDeleteAllModal = () => {
-      deleteAllModal.hidden = true;
-      deleteAllModal.setAttribute("aria-hidden", "true");
-      if (deleteAllPrevFocus.target && typeof deleteAllPrevFocus.target.focus === "function") {
-        deleteAllPrevFocus.target.focus();
-      }
-      deleteAllPrevFocus.target = null;
-    };
-
     const doDelete = async () => {
       if (!deleteState) return;
       const state = deleteState;
       const { item, row, button } = state;
       const previous = button.textContent;
+      const key = getGalleryItemKey(item);
 
       closeDeleteModal();
       button.disabled = true;
@@ -917,6 +979,11 @@
         const resp = await fetch(`/s/${encoded}`, { method: "DELETE" });
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok) throw new Error(data.detail || "Delete failed.");
+        if (key) {
+          gallerySelected.delete(key);
+          galleryItemMap.delete(key);
+          syncGallerySelectionUi();
+        }
         setGalleryStatus(`Deleted ${item.filename}.`);
         loadRecentUploads();
         await resetList();
@@ -931,45 +998,68 @@
       }
     };
 
-    const doClearAllGalleryImages = async () => {
-      if (isDeletingAll) return;
-      isDeletingAll = true;
-      closeDeleteAllModal();
+    const doDeleteSelectedGalleryImages = async () => {
+      const count = gallerySelected.size;
+      if (isDeleteSelectedInProgress || count === 0) return;
+      isDeleteSelectedInProgress = true;
+      closeDeleteSelectedModal();
+      galleryDeleteSelectedBtn.disabled = true;
+      setGalleryStatus(`Deleting ${count} images...`);
 
-      galleryClearBtn.disabled = true;
-      setGalleryStatus("Deleting all images...");
-
+      let success = 0;
+      let failed = 0;
       try {
-        const resp = await fetch("/purge", { method: "POST" });
-        const data = await resp.json();
-        if (!resp.ok) throw new Error(data.detail || "Failed to delete all images.");
-        const removed = data?.purged_count ?? 0;
+        for (const key of [...gallerySelected]) {
+          const item = galleryItemMap.get(key);
+          if (!item) {
+            gallerySelected.delete(key);
+            continue;
+          }
 
-        setGalleryStatus(`${removed} image${removed === 1 ? "" : "s"} deleted.`);
+          try {
+            const encoded = encodeURIComponent(item.filename);
+            const resp = await fetch(`/s/${encoded}`, { method: "DELETE" });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(data.detail || "Delete failed.");
+            galleryItemMap.delete(key);
+            gallerySelected.delete(key);
+            success += 1;
+          } catch (err) {
+            failed += 1;
+            setGalleryStatus(err.message || "Delete failed.", true);
+          }
+        }
+
+        if (failed > 0) {
+          setGalleryStatus(`${success} image${success === 1 ? "" : "s"} deleted, ${failed} failed.`, true);
+        } else {
+          setGalleryStatus(`${success} image${success === 1 ? "" : "s"} deleted.`);
+        }
         galleryNeedsRefresh = true;
         await loadRecentUploads();
         await resetList();
         galleryNeedsRefresh = false;
       } catch (err) {
-        setGalleryStatus(err.message || "Failed to delete all images.", true);
+        setGalleryStatus(err.message || "Failed to delete selected images.", true);
       } finally {
-        galleryClearBtn.disabled = false;
-        isDeletingAll = false;
+        galleryDeleteSelectedBtn.disabled = false;
+        syncGallerySelectionUi();
+        isDeleteSelectedInProgress = false;
       }
     };
 
     deleteCancelBtn.addEventListener("click", closeDeleteModal);
     deleteConfirmBtn.addEventListener("click", () => void doDelete());
-    deleteAllCancelBtn.addEventListener("click", closeDeleteAllModal);
-    deleteAllConfirmBtn.addEventListener("click", () => void doClearAllGalleryImages());
+    deleteSelectedCancelBtn.addEventListener("click", closeDeleteSelectedModal);
+    deleteSelectedConfirmBtn.addEventListener("click", () => void doDeleteSelectedGalleryImages());
     deleteModal.addEventListener("click", (e) => {
       if (e.target === deleteModal) {
         closeDeleteModal();
       }
     });
-    deleteAllModal.addEventListener("click", (e) => {
-      if (e.target === deleteAllModal) {
-        closeDeleteAllModal();
+    deleteSelectedModal.addEventListener("click", (e) => {
+      if (e.target === deleteSelectedModal) {
+        closeDeleteSelectedModal();
       }
     });
     imageModal.addEventListener("click", (e) => {
@@ -1004,8 +1094,8 @@
           closeImageModal();
           return;
         }
-        if (!deleteAllModal.hidden) {
-          closeDeleteAllModal();
+        if (!deleteSelectedModal.hidden) {
+          closeDeleteSelectedModal();
           return;
         }
         if (deleteState) {
@@ -1122,6 +1212,7 @@
         : `ttl: ${item.ttl_seconds_remaining}s`;
       const created = formatCreatedAt(item.created_at);
       meta.textContent = `size ${formatBytes(item.size_bytes)} | ${created} | ${ttl}`;
+      actions.appendChild(createGallerySelectInput(item));
       actions.appendChild(link);
       actions.appendChild(copy);
       actions.appendChild(copyImage);
@@ -1198,6 +1289,7 @@
         openDeleteModal(item, row, del);
       });
 
+      actions.appendChild(createGallerySelectInput(item));
       actions.appendChild(copy);
       actions.appendChild(copyImage);
       actions.appendChild(del);
@@ -1330,6 +1422,8 @@
       if (!append) {
         galleryList.innerHTML = "";
         listOffset = 0;
+        gallerySelected.clear();
+        galleryItemMap.clear();
       }
       setGalleryStatus("");
       loadMoreBtn.disabled = true;
@@ -1346,14 +1440,22 @@
           galleryList.appendChild(empty);
           loadMoreBtn.disabled = true;
           gallerySummary.textContent = "0 images";
+          syncGallerySelectionUi();
           return;
         }
 
-        data.items.forEach((item) => galleryList.appendChild(renderItem(item)));
+        data.items.forEach((item) => {
+          const key = getGalleryItemKey(item);
+          if (key) {
+            galleryItemMap.set(key, item);
+          }
+          galleryList.appendChild(renderItem(item));
+        });
         listOffset = data.next_offset;
         gallerySummary.textContent = `${data.total} images`;
         loadMoreBtn.disabled = !data.has_more;
         loadMoreBtn.textContent = data.has_more ? "Load more" : "All loaded";
+        syncGallerySelectionUi();
       } catch (err) {
         setGalleryStatus(err.message || "Failed to load list.", true);
       } finally {
@@ -1542,7 +1644,17 @@
       setUploadStatus("Image URL copied.");
     });
     refreshBtn.addEventListener("click", () => resetList());
-    galleryClearBtn.addEventListener("click", openDeleteAllModal);
+    gallerySelectAllBtn.addEventListener("click", () => {
+      const keys = Array.from(galleryItemMap.keys());
+      const allSelected = keys.length > 0 && keys.every((key) => gallerySelected.has(key));
+      if (allSelected) {
+        keys.forEach((key) => gallerySelected.delete(key));
+      } else {
+        keys.forEach((key) => gallerySelected.add(key));
+      }
+      syncGallerySelectionUi();
+    });
+    galleryDeleteSelectedBtn.addEventListener("click", openDeleteSelectedModal);
     // view mode toggle intentionally removed (always list view)
     loadMoreBtn.addEventListener("click", () => loadList(true));
 
