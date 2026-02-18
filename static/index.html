@@ -175,7 +175,6 @@
       gap: 10px;
       align-items: center;
     }
-    }
     .list.list-view .item {
       display: flex;
       align-items: center;
@@ -278,7 +277,7 @@
       color: #9ee9ff;
       text-decoration: none;
       word-break: break-all;
-      min-width: 180px;
+      min-width: 0;
       flex: 1;
     }
     .item-meta {
@@ -385,6 +384,121 @@
       color: var(--muted);
       font-size: 14px;
       font-weight: 700;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 12px;
+      }
+      .app {
+        width: 100%;
+        border-radius: 14px;
+        padding: 14px;
+      }
+      h1 {
+        font-size: 1.4rem;
+      }
+      .hint {
+        font-size: 13px;
+      }
+      .zone {
+        padding: 18px 14px;
+      }
+      .btn {
+        min-height: 38px;
+      }
+      .small-btn {
+        min-height: 34px;
+      }
+      .status {
+        font-size: 13px;
+      }
+      .item-main {
+        grid-template-columns: 54px 1fr;
+        gap: 8px;
+      }
+      .thumb {
+        width: 54px;
+        height: 54px;
+      }
+      .modal-panel {
+        width: min(520px, 92vw);
+        padding: 14px 12px;
+      }
+      .modal-actions {
+        gap: 6px;
+      }
+      .gallery-head .row,
+      .row {
+        align-items: stretch;
+      }
+    }
+
+    @media (max-width: 440px) {
+      body {
+        padding: 8px;
+      }
+      .app {
+        border-radius: 10px;
+        padding: 10px;
+      }
+      .item-meta {
+        font-size: 11px;
+      }
+      .meta {
+        font-size: 11px;
+      }
+      .preview {
+        margin-top: 12px;
+        padding: 6px;
+      }
+      .status {
+        font-size: 12px;
+      }
+      .status,
+      .empty {
+        margin-bottom: 10px;
+      }
+      .item-row {
+        justify-content: stretch;
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .item-row .small-btn {
+        width: 100%;
+      }
+      .item-main .item-link {
+        min-width: 0;
+      }
+      .gallery-head {
+        gap: 12px;
+      }
+      .gallery-title {
+        width: 100%;
+      }
+      .gallery-head .row {
+        width: 100%;
+      }
+      .recent-title {
+        font-size: 13px;
+      }
+      #copy-btn,
+      .tab-btn {
+        width: 100%;
+      }
+      #load-more,
+      .url {
+        width: 100%;
+      }
+      .modal-panel {
+        width: min(520px, 100vw - 16px);
+      }
+      .modal-actions {
+        justify-content: stretch;
+      }
+      .modal-actions .small-btn {
+        width: 100%;
+      }
     }
   </style>
 </head>
