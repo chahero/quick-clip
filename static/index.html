@@ -164,6 +164,13 @@
       flex-wrap: wrap;
       margin-bottom: 10px;
     }
+
+    .gallery-head .row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
     .gallery-title {
       margin: 0;
       font-size: 16px;
@@ -568,6 +575,26 @@
       .gallery-head {
         gap: 12px;
       }
+
+      .gallery-head .row {
+        gap: 6px;
+      }
+
+      .gallery-head .row > .small-btn,
+      .gallery-head .row > .btn,
+      .gallery-head .view-btn,
+      .gallery-head .meta {
+        width: auto;
+      }
+
+      .gallery-head .row > .small-btn,
+      .gallery-head .row > .btn,
+      .gallery-head #refresh-btn {
+        min-width: 96px;
+        text-align: center;
+        justify-content: center;
+      }
+
       .gallery-title {
         width: 100%;
       }
@@ -888,8 +915,13 @@
 
     const syncGallerySelectionUi = () => {
       const selectedCount = gallerySelected.size;
-      gallerySelectedCount.textContent = `${selectedCount} selected`;
-      galleryDeleteSelectedBtn.textContent = `Delete selected (${selectedCount})`;
+      const hasSelection = selectedCount > 0;
+      gallerySelectedCount.textContent = hasSelection
+        ? `${selectedCount} selected`
+        : "No images selected";
+      galleryDeleteSelectedBtn.textContent = hasSelection
+        ? `Delete selected (${selectedCount})`
+        : "Delete selected";
 
       const itemCheckboxes = galleryList.querySelectorAll(".item-select");
       itemCheckboxes.forEach((checkbox) => {
@@ -900,7 +932,7 @@
       const keys = Array.from(galleryItemMap.keys());
       const allVisibleSelected = keys.length > 0 && keys.every((key) => gallerySelected.has(key));
 
-      galleryDeleteSelectedBtn.disabled = selectedCount === 0;
+      galleryDeleteSelectedBtn.disabled = !hasSelection;
       gallerySelectAllBtn.disabled = keys.length === 0;
       gallerySelectAllBtn.textContent = allVisibleSelected ? "Clear selection" : "Select all";
     };
@@ -1012,18 +1044,22 @@
     const doDeleteSelectedGalleryImages = async () => {
       const count = gallerySelected.size;
       if (isDeleteSelectedInProgress || count === 0) return;
+      const selectedKeys = [...gallerySelected];
       isDeleteSelectedInProgress = true;
       closeDeleteSelectedModal();
       galleryDeleteSelectedBtn.disabled = true;
-      setGalleryStatus(`Deleting ${count} images...`);
+      setGalleryStatus(`Deleting ${count} image${count === 1 ? "" : "s"}...`);
 
       let success = 0;
       let failed = 0;
+      const failedNames = [];
       try {
-        for (const key of [...gallerySelected]) {
+        for (const key of selectedKeys) {
           const item = galleryItemMap.get(key);
           if (!item) {
             gallerySelected.delete(key);
+            failed += 1;
+            failedNames.push("Unknown file");
             continue;
           }
 
@@ -1037,12 +1073,18 @@
             success += 1;
           } catch (err) {
             failed += 1;
-            setGalleryStatus(err.message || "Delete failed.", true);
+            failedNames.push(item.filename || "Unknown file");
           }
         }
 
         if (failed > 0) {
-          setGalleryStatus(`${success} image${success === 1 ? "" : "s"} deleted, ${failed} failed.`, true);
+          const failedDisplay = failedNames
+            .slice(0, 2)
+            .map((name) => `"${name}"`)
+            .join(", ");
+          const suffix = failedNames.length > 2 ? `, +${failedNames.length - 2} more` : "";
+          const failedSummary = failedDisplay ? `${failedDisplay}${suffix}` : `${failed} file${failed === 1 ? "" : "s"}`;
+          setGalleryStatus(`${success} image${success === 1 ? "" : "s"} deleted, ${failed} failed. Failed: ${failedSummary}`, true);
         } else {
           setGalleryStatus(`${success} image${success === 1 ? "" : "s"} deleted.`);
         }
