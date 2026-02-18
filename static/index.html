@@ -1,0 +1,1130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>quick-clip</title>
+  <style>
+    :root {
+      --bg: #0f1226;
+      --ink: #f2f5ff;
+      --muted: #aeb4d4;
+      --panel: #171c3a;
+      --accent: #53f1ff;
+      --accent2: #7cffaf;
+      --danger: #ff7a7a;
+      --border: #2a3472;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Trebuchet MS", "Avenir Next", "Segoe UI", sans-serif;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, #202b6a55 0%, transparent 60%),
+        radial-gradient(900px 420px at 90% 110%, #2a6bff33 0%, transparent 50%),
+        linear-gradient(140deg, #0b0f29, #0a0f2a 40%, #11173b 100%);
+      color: var(--ink);
+    }
+    .app {
+      width: min(900px, 100%);
+      background: linear-gradient(180deg, #1a2048, #171c3e);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 22px 60px #0008;
+    }
+    h1 {
+      margin: 0 0 8px;
+      letter-spacing: .3px;
+    }
+    .hint {
+      margin: 0 0 14px;
+      color: var(--muted);
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+      margin-bottom: 16px;
+    }
+    .tab-btn {
+      border: 0;
+      background: #0f1735;
+      color: var(--muted);
+      border: 1px solid #2b356e;
+      border-radius: 10px;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      color: #0b102e;
+      font-weight: 700;
+      background: linear-gradient(120deg, var(--accent), var(--accent2));
+      border-color: transparent;
+    }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .status {
+      margin-bottom: 12px;
+      min-height: 1.4em;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .status.error { color: var(--danger); }
+
+    .zone {
+      border: 2px dashed var(--border);
+      border-radius: 14px;
+      padding: 26px;
+      text-align: center;
+      background: #10173f;
+      transition: transform .15s, border-color .15s, background .15s;
+    }
+    .zone:hover {
+      border-color: var(--accent);
+      background: #121c49;
+      transform: translateY(-2px);
+    }
+    .zone.drag { border-color: var(--accent2); background: #12354f; }
+    .zone input[type=file] { display: none; }
+
+    .btn {
+      border: 0;
+      color: #0b102e;
+      background: linear-gradient(120deg, var(--accent), var(--accent2));
+      font-weight: 700;
+      padding: 10px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .btn[disabled] { opacity: .6; cursor: not-allowed; }
+    .row {
+      margin-top: 14px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .url {
+      flex: 1;
+      background: #0c1230;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      color: #ecf1ff;
+      word-break: break-all;
+      min-height: 18px;
+    }
+    .preview {
+      margin-top: 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #0d1233;
+      display: none;
+      max-width: 100%;
+      border-radius: 10px;
+      padding: 8px;
+    }
+    .preview img {
+      width: 100%;
+      max-height: 360px;
+      object-fit: contain;
+      border-radius: 8px;
+      display: block;
+      background: #050814;
+    }
+    .gallery-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .gallery-title {
+      margin: 0;
+      font-size: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .list {
+      display: grid;
+      gap: 8px;
+    }
+    .list.grid-view {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+    }
+    .list.grid-view .item {
+      width: auto;
+    }
+    .list.grid-view .item-main {
+      display: grid;
+      grid-template-columns: 64px 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+    }
+    .list.list-view .item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      width: 100%;
+      padding: 10px;
+    }
+    .list.list-view .item-main {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      width: 100%;
+    }
+    .list.list-view .item-content {
+      width: 100%;
+      min-width: 0;
+      gap: 6px;
+    }
+    .list.list-view .item-meta {
+      line-height: 1.35;
+    }
+    .list.list-view .item-row {
+      display: flex;
+      justify-content: flex-end;
+      width: 100%;
+      margin-top: 2px;
+      margin-left: auto;
+    }
+    .list.list-view .item-link {
+      min-width: 0;
+      width: auto;
+    }
+    .list.list-view .thumb {
+      width: 58px;
+      height: 58px;
+    }
+    .list.list-view .item-main .item-link {
+      width: 100%;
+      overflow-wrap: anywhere;
+    }
+    .view-toggle {
+      display: none;
+    }
+    .view-btn {
+      border: 1px solid #2b356e;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      background: #121b3f;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .view-btn.active {
+      color: #0b102e;
+      background: linear-gradient(120deg, var(--accent), var(--accent2));
+      border-color: transparent;
+    }
+    .empty {
+      color: var(--muted);
+      font-size: 13px;
+      padding: 12px 2px;
+    }
+    .item {
+      background: #0b1434;
+      border: 1px solid #23306c;
+      border-radius: 8px;
+      padding: 10px;
+    }
+    .item-main {
+      display: grid;
+      grid-template-columns: 64px 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+    .thumb {
+      width: 64px;
+      height: 64px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid #1d2559;
+      background: #0d1437;
+      cursor: zoom-in;
+    }
+    .item-content { display: flex; flex-direction: column; gap: 8px; }
+    .item-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+    #recent-list .item-row {
+      justify-content: flex-end;
+      width: 100%;
+    }
+    .item-link {
+      color: #9ee9ff;
+      text-decoration: none;
+      word-break: break-all;
+      min-width: 180px;
+      flex: 1;
+    }
+    .item-meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .small-btn {
+      font-size: 12px;
+      padding: 6px 10px;
+      font-weight: 700;
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .small-btn[disabled] {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+    .small-btn.secondary {
+      color: #e8eeff;
+      background: #152157;
+      border: 1px solid #2a3a8a;
+    }
+    .danger {
+      color: #fff;
+      background: linear-gradient(120deg, #ff5f5f, #ff8080);
+    }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: #000a;
+      display: none;
+      opacity: 0;
+      transition: opacity 0.18s ease;
+      place-items: center;
+      z-index: 30;
+      backdrop-filter: blur(1px);
+    }
+    .modal-backdrop[aria-hidden="false"] {
+      display: grid;
+      opacity: 1;
+    }
+    .modal-panel {
+      width: min(420px, 90%);
+      background: linear-gradient(180deg, #161c42, #121833);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      box-shadow: 0 16px 46px #000a;
+      transform: translateY(6px) scale(0.985);
+      opacity: 0;
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+    .modal-panel h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+    .modal-panel p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 14px;
+      word-break: break-all;
+    }
+    .modal-actions {
+      display: flex;
+      width: 100%;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .modal-actions .small-btn {
+      white-space: nowrap;
+    }
+    .modal-backdrop[hidden] {
+      display: none;
+    }
+    .modal-backdrop:not([hidden]) .modal-panel {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+    .image-modal .modal-panel {
+      width: min(920px, 95vw);
+    }
+    #image-modal-img {
+      width: 100%;
+      max-height: 70vh;
+      object-fit: contain;
+      border-radius: 8px;
+      background: #050814;
+    }
+    .image-modal-caption {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      word-break: break-all;
+    }
+    .recent-section {
+      margin-top: 16px;
+    }
+    .recent-title {
+      margin: 0 0 6px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>quick-clip</h1>
+    <p class="hint">Upload images to create local URLs instantly, then reuse them from CLI agents.</p>
+
+    <div class="tabs">
+      <button id="tab-upload" class="tab-btn active" type="button">Upload</button>
+      <button id="tab-gallery" class="tab-btn" type="button">Gallery</button>
+    </div>
+
+    <div id="upload-panel" class="panel active">
+      <div id="status-upload" class="status"></div>
+
+      <div id="zone" class="zone">
+        <p>Drop image here</p>
+        <p>or</p>
+        <label class="btn">
+          Select image
+          <input id="file-input" type="file" accept="image/*" />
+        </label>
+      </div>
+
+      <div class="row">
+        <div id="url-box" class="url">Ready.</div>
+        <button id="copy-btn" class="btn" disabled>Copy URL</button>
+      </div>
+
+      <div id="preview-box" class="preview">
+        <img id="preview" alt="Uploaded preview" />
+      </div>
+
+      <section class="recent-section">
+        <h3 class="recent-title">Latest uploads</h3>
+        <div id="recent-status" class="status"></div>
+        <div id="recent-list" class="list"></div>
+      </section>
+    </div>
+
+    <div id="gallery-panel" class="panel">
+      <div class="gallery-head">
+        <div class="gallery-title">
+          <span>All Images</span>
+          <span id="gallery-summary" class="meta"></span>
+        </div>
+        <div class="row">
+          <div class="view-toggle">
+            <button id="view-grid-btn" class="view-btn active" type="button">Grid</button>
+            <button id="view-list-btn" class="view-btn" type="button">List</button>
+          </div>
+          <button id="refresh-btn" class="btn small-btn" type="button">Refresh</button>
+        </div>
+      </div>
+      <div id="gallery-status" class="status"></div>
+      <div id="gallery-list" class="list"></div>
+      <div class="row">
+        <button id="load-more" class="btn small-btn" style="width: 100%; margin-top: 8px;" type="button" disabled>Load more</button>
+      </div>
+    </div>
+
+    <div id="delete-modal" class="modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+      <div class="modal-panel">
+        <h3 id="delete-modal-title">Delete image</h3>
+        <p>
+          Are you sure you want to delete
+          <strong id="delete-filename">this image</strong>?
+        </p>
+        <div class="modal-actions">
+          <button id="delete-cancel-btn" class="btn small-btn secondary" type="button">Cancel</button>
+          <button id="delete-confirm-btn" class="small-btn danger" type="button">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="image-modal" class="modal-backdrop image-modal" hidden role="dialog" aria-modal="true" aria-labelledby="image-modal-title">
+      <div class="modal-panel">
+        <h3 id="image-modal-title">Image preview</h3>
+        <img id="image-modal-img" alt="Image preview" />
+        <p id="image-modal-filename" class="image-modal-caption"></p>
+        <div class="modal-actions">
+          <button id="image-modal-copy-url-btn" class="small-btn secondary" type="button">Copy URL</button>
+          <button id="image-modal-copy-image-btn" class="small-btn secondary" type="button">Copy Image</button>
+          <button id="image-modal-open-btn" class="small-btn" type="button">Open URL</button>
+          <button id="image-modal-close-btn" class="small-btn danger" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const PAGE_LIMIT = 30;
+
+    const tabUpload = document.getElementById("tab-upload");
+    const tabGallery = document.getElementById("tab-gallery");
+    const uploadPanel = document.getElementById("upload-panel");
+    const galleryPanel = document.getElementById("gallery-panel");
+
+    const zone = document.getElementById("zone");
+    const fileInput = document.getElementById("file-input");
+    const statusUpload = document.getElementById("status-upload");
+    const statusGallery = document.getElementById("gallery-status");
+    const urlBox = document.getElementById("url-box");
+      const copyBtn = document.getElementById("copy-btn");
+      const previewBox = document.getElementById("preview-box");
+      const preview = document.getElementById("preview");
+
+    const gallerySummary = document.getElementById("gallery-summary");
+    const galleryList = document.getElementById("gallery-list");
+    const refreshBtn = document.getElementById("refresh-btn");
+    const loadMoreBtn = document.getElementById("load-more");
+    const deleteModal = document.getElementById("delete-modal");
+    const deleteFilename = document.getElementById("delete-filename");
+    const deleteCancelBtn = document.getElementById("delete-cancel-btn");
+    const deleteConfirmBtn = document.getElementById("delete-confirm-btn");
+    const viewGridBtn = document.getElementById("view-grid-btn");
+    const viewListBtn = document.getElementById("view-list-btn");
+    const recentList = document.getElementById("recent-list");
+    const recentStatus = document.getElementById("recent-status");
+    const imageModal = document.getElementById("image-modal");
+    const imageModalImg = document.getElementById("image-modal-img");
+    const imageModalFilename = document.getElementById("image-modal-filename");
+    const imageModalCopyUrlBtn = document.getElementById("image-modal-copy-url-btn");
+    const imageModalCopyImageBtn = document.getElementById("image-modal-copy-image-btn");
+    const imageModalOpenBtn = document.getElementById("image-modal-open-btn");
+    const imageModalCloseBtn = document.getElementById("image-modal-close-btn");
+    const deletePrevFocus = { target: null };
+
+    let listOffset = 0;
+    let isLoading = false;
+    let isRecentLoading = false;
+    let activeTab = "upload";
+    let galleryViewMode = "list";
+    let galleryNeedsRefresh = false;
+    let deleteState = null;
+    let imageState = null;
+    let imagePrevFocus = { target: null };
+    const allowed = (file) => file?.type.startsWith("image/");
+
+    const setUploadStatus = (text, isError = false) => {
+      statusUpload.textContent = text;
+      statusUpload.classList.toggle("error", isError);
+    };
+
+    const setGalleryStatus = (text, isError = false) => {
+      statusGallery.textContent = text;
+      statusGallery.classList.toggle("error", isError);
+    };
+
+    const switchTab = (next) => {
+      activeTab = next;
+      const isUpload = next === "upload";
+      tabUpload.classList.toggle("active", isUpload);
+      tabGallery.classList.toggle("active", !isUpload);
+      uploadPanel.classList.toggle("active", isUpload);
+      galleryPanel.classList.toggle("active", !isUpload);
+      localStorage.setItem("quick-clip-tab", next);
+      if (!isUpload) {
+        if (galleryNeedsRefresh || galleryList.children.length === 0) {
+          galleryNeedsRefresh = false;
+          loadList(false);
+        }
+      }
+      if (isUpload) {
+        loadRecentUploads();
+      }
+    };
+
+    const formatBytes = (bytes) => {
+      if (!bytes && bytes !== 0) return "unknown";
+      const units = ["B", "KB", "MB", "GB"];
+      let size = bytes;
+      let i = 0;
+      while (size >= 1024 && i < units.length - 1) {
+        size /= 1024;
+        i += 1;
+      }
+      return `${size.toFixed(size >= 10 || i === 0 ? 0 : 1)} ${units[i]}`;
+    };
+
+    const formatCreatedAt = (unixSeconds) => {
+      const locale = navigator.language || "en-US";
+      const date = new Date(unixSeconds * 1000);
+      return new Intl.DateTimeFormat(locale, {
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+      }).format(date);
+    };
+
+    const openDeleteModal = (item, row, button) => {
+      deleteState = { item, row, button };
+      deletePrevFocus.target = document.activeElement;
+      deleteFilename.textContent = item.filename;
+      deleteModal.hidden = false;
+      deleteModal.setAttribute("aria-hidden", "false");
+      window.requestAnimationFrame(() => {
+        deleteCancelBtn.focus();
+      });
+    };
+
+    const closeDeleteModal = () => {
+      deleteState = null;
+      deleteModal.hidden = true;
+      deleteModal.setAttribute("aria-hidden", "true");
+      if (deletePrevFocus.target && typeof deletePrevFocus.target.focus === "function") {
+        deletePrevFocus.target.focus();
+      }
+      deletePrevFocus.target = null;
+    };
+
+    const doDelete = async () => {
+      if (!deleteState) return;
+      const state = deleteState;
+      const { item, row, button } = state;
+      const previous = button.textContent;
+
+      closeDeleteModal();
+      button.disabled = true;
+      button.textContent = "Deleting...";
+      row.style.opacity = "0.5";
+
+      try {
+        const encoded = encodeURIComponent(item.filename);
+        const resp = await fetch(`/s/${encoded}`, { method: "DELETE" });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.detail || "Delete failed.");
+        setGalleryStatus(`Deleted ${item.filename}.`);
+        loadRecentUploads();
+        await resetList();
+      } catch (err) {
+        row.style.opacity = "1";
+        setGalleryStatus(err.message || "Delete failed.", true);
+      } finally {
+        deleteState = null;
+        button.disabled = false;
+        button.textContent = previous;
+        row.style.opacity = "1";
+      }
+    };
+
+    deleteCancelBtn.addEventListener("click", closeDeleteModal);
+    deleteConfirmBtn.addEventListener("click", () => void doDelete());
+    deleteModal.addEventListener("click", (e) => {
+      if (e.target === deleteModal) {
+        closeDeleteModal();
+      }
+    });
+    imageModal.addEventListener("click", (e) => {
+      if (e.target === imageModal) {
+        closeImageModal();
+      }
+    });
+    imageModalCloseBtn.addEventListener("click", closeImageModal);
+    imageModalCopyUrlBtn.addEventListener("click", async () => {
+      if (!imageState?.url) return;
+      try {
+        await copyImageUrlToClipboard(imageState);
+      } catch (err) {
+        applyCopyStatus(err.message || "Copy URL failed.", true);
+      }
+    });
+    imageModalCopyImageBtn.addEventListener("click", async () => {
+      if (!imageState?.url) return;
+      try {
+        await copyImageFileToClipboard(imageState);
+      } catch (err) {
+        applyCopyStatus(err.message || "Copy image failed.", true);
+      }
+    });
+    imageModalOpenBtn.addEventListener("click", () => {
+      if (!imageState?.url) return;
+      window.open(imageState.url, "_blank", "noopener,noreferrer");
+    });
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        if (!imageModal.hidden) {
+          closeImageModal();
+          return;
+        }
+        if (deleteState) {
+          closeDeleteModal();
+          return;
+        }
+      }
+    });
+
+    const setGalleryViewMode = () => {
+      galleryViewMode = "list";
+      galleryList.classList.add("list-view");
+      galleryList.classList.remove("grid-view");
+    };
+
+    const applyCopyStatus = (message, isError = false) => {
+      if (activeTab === "upload") {
+        setUploadStatus(message, isError);
+      } else {
+        setGalleryStatus(message, isError);
+      }
+    };
+
+    const copyImageUrlToClipboard = async (item) => {
+      if (!item?.url) {
+        throw new Error("No image URL available.");
+      }
+      await navigator.clipboard.writeText(item.url);
+      applyCopyStatus("Image URL copied.");
+    };
+
+    const copyImageFileToClipboard = async (item) => {
+      if (!item?.url) {
+        throw new Error("No image available.");
+      }
+
+      if (!navigator.clipboard || typeof ClipboardItem === "undefined") {
+        throw new Error("This browser does not support image copy.");
+      }
+
+      const response = await fetch(item.url);
+      if (!response.ok) {
+        throw new Error("Failed to fetch image for clipboard copy.");
+      }
+
+      const blob = await response.blob();
+      const mimeType = blob.type || "image/png";
+      await navigator.clipboard.write([new ClipboardItem({ [mimeType]: blob })]);
+      applyCopyStatus("Image copied to clipboard.");
+    };
+
+    const renderGridItem = (item) => {
+      const row = document.createElement("div");
+      row.className = "item";
+
+      const main = document.createElement("div");
+      main.className = "item-main";
+
+      const thumb = document.createElement("img");
+      thumb.src = item.thumbnail_url || item.url;
+      thumb.className = "thumb";
+      thumb.loading = "lazy";
+      thumb.alt = item.filename;
+      thumb.addEventListener("click", () => openImageModal(item));
+
+      const content = document.createElement("div");
+      content.className = "item-content";
+
+      const actions = document.createElement("div");
+      actions.className = "item-row";
+
+      const link = document.createElement("a");
+      link.href = item.url;
+      link.target = "_blank";
+      link.rel = "noreferrer";
+      link.className = "item-link";
+      link.textContent = item.filename;
+
+      const copy = document.createElement("button");
+      copy.type = "button";
+      copy.className = "small-btn btn";
+      copy.textContent = "Copy URL";
+      copy.addEventListener("click", async () => {
+        try {
+          await copyImageUrlToClipboard(item);
+        } catch (err) {
+          applyCopyStatus(err.message || "Copy URL failed.", true);
+        }
+      });
+
+      const copyImage = document.createElement("button");
+      copyImage.type = "button";
+      copyImage.className = "small-btn secondary";
+      copyImage.textContent = "Copy Image";
+      copyImage.addEventListener("click", async () => {
+        try {
+          await copyImageFileToClipboard(item);
+        } catch (err) {
+          applyCopyStatus(err.message || "Copy image failed.", true);
+        }
+      });
+
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "small-btn danger";
+      del.textContent = "Delete";
+      del.addEventListener("click", () => {
+        openDeleteModal(item, row, del);
+      });
+
+      const meta = document.createElement("div");
+      const ttl = item.ttl_seconds_remaining === null
+        ? "ttl: n/a"
+        : `ttl: ${item.ttl_seconds_remaining}s`;
+      const created = formatCreatedAt(item.created_at);
+      meta.textContent = `size ${formatBytes(item.size_bytes)} | ${created} | ${ttl}`;
+      actions.appendChild(link);
+      actions.appendChild(copy);
+      actions.appendChild(copyImage);
+      actions.appendChild(del);
+      content.appendChild(actions);
+      content.appendChild(meta);
+      main.appendChild(thumb);
+      main.appendChild(content);
+      row.appendChild(main);
+      return row;
+    };
+
+    const renderListItem = (item) => {
+      const row = document.createElement("div");
+      row.className = "item";
+
+      const thumb = document.createElement("img");
+      thumb.src = item.thumbnail_url || item.url;
+      thumb.className = "thumb";
+      thumb.loading = "lazy";
+      thumb.alt = item.filename;
+      thumb.addEventListener("click", () => openImageModal(item));
+
+      const content = document.createElement("div");
+      content.className = "item-content";
+
+      const link = document.createElement("a");
+      link.href = item.url;
+      link.target = "_blank";
+      link.rel = "noreferrer";
+      link.className = "item-link";
+      link.textContent = item.filename;
+
+      const meta = document.createElement("div");
+      meta.className = "item-meta";
+      const ttl = item.ttl_seconds_remaining === null
+        ? "ttl: n/a"
+        : `ttl: ${item.ttl_seconds_remaining}s`;
+      const created = formatCreatedAt(item.created_at);
+      meta.textContent = `size ${formatBytes(item.size_bytes)} | ${created} | ${ttl}`;
+
+      const actions = document.createElement("div");
+      actions.className = "item-row";
+
+      const copy = document.createElement("button");
+      copy.type = "button";
+      copy.className = "small-btn btn";
+      copy.textContent = "Copy URL";
+      copy.addEventListener("click", async () => {
+        try {
+          await copyImageUrlToClipboard(item);
+        } catch (err) {
+          applyCopyStatus(err.message || "Copy URL failed.", true);
+        }
+      });
+
+      const copyImage = document.createElement("button");
+      copyImage.type = "button";
+      copyImage.className = "small-btn secondary";
+      copyImage.textContent = "Copy Image";
+      copyImage.addEventListener("click", async () => {
+        try {
+          await copyImageFileToClipboard(item);
+        } catch (err) {
+          applyCopyStatus(err.message || "Copy image failed.", true);
+        }
+      });
+
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "small-btn danger";
+      del.textContent = "Delete";
+      del.addEventListener("click", () => {
+        openDeleteModal(item, row, del);
+      });
+
+      actions.appendChild(copy);
+      actions.appendChild(copyImage);
+      actions.appendChild(del);
+
+      content.appendChild(link);
+      content.appendChild(meta);
+      content.appendChild(actions);
+
+      const main = document.createElement("div");
+      main.className = "item-main";
+      main.appendChild(thumb);
+      main.appendChild(content);
+      row.appendChild(main);
+      return row;
+    };
+
+    const renderItem = (item) => renderListItem(item);
+
+    const renderRecentItem = (item) => {
+      const row = document.createElement("div");
+      row.className = "item";
+
+      const thumb = document.createElement("img");
+      thumb.src = item.thumbnail_url || item.url;
+      thumb.className = "thumb";
+      thumb.loading = "lazy";
+      thumb.alt = item.filename;
+      thumb.addEventListener("click", () => openImageModal(item));
+
+      const content = document.createElement("div");
+      content.className = "item-content";
+
+      const link = document.createElement("a");
+      link.href = item.url;
+      link.target = "_blank";
+      link.rel = "noreferrer";
+      link.className = "item-link";
+      link.textContent = item.filename;
+
+      const meta = document.createElement("div");
+      meta.className = "item-meta";
+      const ttl = item.ttl_seconds_remaining === null
+        ? "ttl: n/a"
+        : `ttl: ${item.ttl_seconds_remaining}s`;
+      const created = formatCreatedAt(item.created_at);
+      meta.textContent = `size ${formatBytes(item.size_bytes)} | ${created} | ${ttl}`;
+
+      const actions = document.createElement("div");
+      actions.className = "item-row";
+
+      const copy = document.createElement("button");
+      copy.type = "button";
+      copy.className = "small-btn btn";
+      copy.textContent = "Copy URL";
+      copy.addEventListener("click", async () => {
+        try {
+          await copyImageUrlToClipboard(item);
+        } catch (err) {
+          applyCopyStatus(err.message || "Copy URL failed.", true);
+        }
+      });
+
+      const copyImage = document.createElement("button");
+      copyImage.type = "button";
+      copyImage.className = "small-btn secondary";
+      copyImage.textContent = "Copy Image";
+      copyImage.addEventListener("click", async () => {
+        try {
+          await copyImageFileToClipboard(item);
+        } catch (err) {
+          applyCopyStatus(err.message || "Copy image failed.", true);
+        }
+      });
+
+      actions.appendChild(copy);
+      actions.appendChild(copyImage);
+      content.appendChild(link);
+      content.appendChild(meta);
+      content.appendChild(actions);
+
+      const main = document.createElement("div");
+      main.className = "item-main";
+      main.appendChild(thumb);
+      main.appendChild(content);
+      row.appendChild(main);
+      return row;
+    };
+
+    const loadRecentUploads = async () => {
+      if (isRecentLoading) return;
+      isRecentLoading = true;
+      recentList.innerHTML = "";
+      recentStatus.textContent = "";
+      recentStatus.classList.toggle("error", false);
+
+      try {
+        const resp = await fetch("/list?limit=3&offset=0");
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || "Failed to load recent uploads.");
+
+        if (data.items.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "empty";
+          empty.textContent = "No uploads yet.";
+          recentList.appendChild(empty);
+          return;
+        }
+
+        data.items.forEach((item) => recentList.appendChild(renderRecentItem(item)));
+      } catch (err) {
+        recentStatus.textContent = err.message || "Failed to load recent uploads.";
+        recentStatus.classList.toggle("error", true);
+      } finally {
+        isRecentLoading = false;
+      }
+    };
+
+    const loadList = async (append = false) => {
+      if (isLoading) return;
+      isLoading = true;
+      if (!append) {
+        galleryList.innerHTML = "";
+        listOffset = 0;
+      }
+      setGalleryStatus("");
+      loadMoreBtn.disabled = true;
+
+      try {
+        const resp = await fetch(`/list?limit=${PAGE_LIMIT}&offset=${listOffset}`);
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || "Failed to load list.");
+
+        if (!append && data.items.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "empty";
+          empty.textContent = "No images yet.";
+          galleryList.appendChild(empty);
+          loadMoreBtn.disabled = true;
+          gallerySummary.textContent = "0 images";
+          return;
+        }
+
+        data.items.forEach((item) => galleryList.appendChild(renderItem(item)));
+        listOffset = data.next_offset;
+        gallerySummary.textContent = `${data.total} images`;
+        loadMoreBtn.disabled = !data.has_more;
+        loadMoreBtn.textContent = data.has_more ? "Load more" : "All loaded";
+      } catch (err) {
+        setGalleryStatus(err.message || "Failed to load list.", true);
+      } finally {
+        isLoading = false;
+      }
+    };
+
+    const resetList = async () => {
+      await loadList(false);
+    };
+
+    const upload = async (file) => {
+      if (!allowed(file)) {
+        setUploadStatus("Only image files are supported.");
+        return;
+      }
+
+      const form = new FormData();
+      form.append("file", file);
+      setUploadStatus("Uploading...");
+      copyBtn.disabled = true;
+      previewBox.style.display = "none";
+
+      try {
+        const resp = await fetch("/upload", { method: "POST", body: form });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || "Upload failed.");
+
+        urlBox.textContent = data.url;
+        copyBtn.disabled = false;
+        setUploadStatus("Uploaded and copied to clipboard.");
+        await navigator.clipboard.writeText(data.url);
+
+        preview.src = data.url;
+        previewBox.style.display = "block";
+        preview.style.cursor = "zoom-in";
+        preview.onclick = () => {
+          openImageModal({ filename: data.filename, url: data.url });
+        };
+
+        loadRecentUploads();
+
+        galleryNeedsRefresh = true;
+        if (activeTab === "gallery") {
+          await resetList();
+          galleryNeedsRefresh = false;
+        }
+      } catch (err) {
+        setUploadStatus(err.message || "Upload failed.", true);
+      }
+    };
+
+    function openImageModal(item) {
+      if (!item?.url) return;
+      imageState = {
+        filename: item.filename || "image",
+        url: item.url,
+      };
+      imagePrevFocus.target = document.activeElement;
+      imageModalFilename.textContent = imageState.filename;
+      imageModalImg.src = imageState.url;
+      imageModal.hidden = false;
+      imageModal.setAttribute("aria-hidden", "false");
+      window.requestAnimationFrame(() => imageModalCloseBtn.focus());
+    }
+
+    function closeImageModal() {
+      imageState = null;
+      imageModal.hidden = true;
+      imageModal.setAttribute("aria-hidden", "true");
+      imageModalImg.src = "";
+      if (imagePrevFocus.target && typeof imagePrevFocus.target.focus === "function") {
+        imagePrevFocus.target.focus();
+      }
+      imagePrevFocus.target = null;
+    }
+
+    tabUpload.addEventListener("click", () => switchTab("upload"));
+    tabGallery.addEventListener("click", () => switchTab("gallery"));
+    copyBtn.addEventListener("click", async () => {
+      if (!urlBox.textContent || !urlBox.textContent.startsWith("http")) return;
+      await navigator.clipboard.writeText(urlBox.textContent);
+      setUploadStatus("Image URL copied.");
+    });
+    refreshBtn.addEventListener("click", () => resetList());
+    // view mode toggle intentionally removed (always list view)
+    loadMoreBtn.addEventListener("click", () => loadList(true));
+
+    fileInput.addEventListener("change", (e) => {
+      const file = e.target.files?.[0];
+      if (file) upload(file);
+      e.target.value = "";
+    });
+
+    zone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      zone.classList.add("drag");
+    });
+    zone.addEventListener("dragleave", () => zone.classList.remove("drag"));
+    zone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      zone.classList.remove("drag");
+      const file = e.dataTransfer.files?.[0];
+      if (file) upload(file);
+    });
+
+    window.addEventListener("paste", (e) => {
+      const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith("image/"));
+      if (!item) return;
+      const file = item.getAsFile();
+      if (file) upload(file);
+    });
+
+    const savedTab = localStorage.getItem("quick-clip-tab");
+    setGalleryViewMode("list");
+    loadRecentUploads();
+    if (savedTab === "gallery") {
+      switchTab("gallery");
+    } else {
+      switchTab("upload");
+    }
+  </script>
+</body>
+</html>
+
