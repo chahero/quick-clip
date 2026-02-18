@@ -1,6 +1,6 @@
 # quick-clip
 
-`quick-clip` turns local uploads into local URLs for CLI/image agents.
+`quick-clip` turns local uploads into local URLs for quick sharing and reuse.
 
 ## Run
 
