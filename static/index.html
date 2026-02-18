@@ -74,8 +74,23 @@
       min-height: 1.4em;
       color: var(--muted);
       font-size: 14px;
+      border-radius: 8px;
+      padding: 6px 8px;
+      border: 1px solid transparent;
+      transition: background-color .2s, color .2s, border-color .2s;
+      background: transparent;
     }
-    .status.error { color: var(--danger); }
+    .status:empty {
+      min-height: 0;
+      margin-bottom: 0;
+      padding: 0;
+      border-color: transparent;
+    }
+    .status.error {
+      color: var(--danger);
+      border-color: #5b243d;
+      background: #2a1220;
+    }
 
     .zone {
       border: 2px dashed var(--border);
@@ -101,6 +116,8 @@
       padding: 10px 14px;
       border-radius: 8px;
       cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
     .btn[disabled] { opacity: .6; cursor: not-allowed; }
     .row {
@@ -252,6 +269,12 @@
       gap: 10px;
       align-items: center;
     }
+    .item-main .item-link {
+      min-width: 0;
+      width: 100%;
+      display: block;
+      overflow-wrap: anywhere;
+    }
     .thumb {
       width: 64px;
       height: 64px;
@@ -260,6 +283,8 @@
       border: 1px solid #1d2559;
       background: #0d1437;
       cursor: zoom-in;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
     .item-content { display: flex; flex-direction: column; gap: 8px; }
     .item-row {
@@ -279,6 +304,8 @@
       word-break: break-all;
       min-width: 0;
       flex: 1;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
     .item-meta {
       color: var(--muted);
@@ -291,6 +318,8 @@
       border: 0;
       border-radius: 8px;
       cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
     .small-btn[disabled] {
       opacity: .6;
@@ -330,6 +359,7 @@
       transform: translateY(6px) scale(0.985);
       opacity: 0;
       transition: transform 0.2s ease, opacity 0.2s ease;
+      -webkit-overflow-scrolling: touch;
     }
     .modal-panel h3 {
       margin: 0 0 8px;
@@ -362,6 +392,8 @@
     }
     .image-modal .modal-panel {
       width: min(920px, 95vw);
+      max-height: calc(95vh - 12px);
+      overflow: auto;
     }
     #image-modal-img {
       width: 100%;
@@ -391,6 +423,17 @@
     .meta {
       text-wrap: pretty;
     }
+    html,
+    body {
+      text-size-adjust: 100%;
+      -webkit-text-size-adjust: 100%;
+    }
+    .list,
+    .recent-section,
+    .modal-backdrop,
+    .app {
+      -webkit-overflow-scrolling: touch;
+    }
 
     @media (max-width: 768px) {
       body {
@@ -400,6 +443,7 @@
         width: 100%;
         border-radius: 14px;
         padding: 14px;
+        padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
       }
       h1 {
         font-size: 1.4rem;
@@ -415,9 +459,15 @@
       }
       .small-btn {
         min-height: 34px;
+        padding-top: 8px;
+        padding-bottom: 8px;
       }
       .status {
         font-size: 13px;
+        position: sticky;
+        top: 2px;
+        z-index: 2;
+        box-shadow: 0 6px 18px #0004;
       }
       .url {
         min-height: 42px;
@@ -427,6 +477,10 @@
       }
       .tabs {
         gap: 6px;
+      }
+      .tab-btn,
+      .view-btn {
+        min-height: 38px;
       }
       .item-main {
         grid-template-columns: 54px 1fr;
@@ -453,6 +507,15 @@
       .gallery-title {
         gap: 2px;
       }
+      .image-modal .modal-panel {
+        max-height: 90vh;
+      }
+      .image-modal .modal-panel img {
+        max-height: calc(90vh - 190px);
+      }
+      .item-content {
+        min-width: 0;
+      }
     }
 
     @media (max-width: 440px) {
@@ -462,6 +525,7 @@
       .app {
         border-radius: 10px;
         padding: 10px;
+        padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
       }
       .item-meta {
         font-size: 11px;
@@ -475,6 +539,7 @@
       }
       .status {
         font-size: 12px;
+        top: 0;
       }
       .status,
       .empty {
@@ -541,6 +606,15 @@
       .zone {
         padding: 14px 10px;
       }
+      .tabs {
+        gap: 6px;
+        flex-direction: column;
+      }
+      .tab-btn {
+        width: 100%;
+        min-height: 36px;
+        font-size: 13px;
+      }
       .item {
         padding: 8px;
       }
@@ -552,6 +626,22 @@
       }
       .item-link {
         margin-bottom: 4px;
+      }
+      .image-modal .modal-panel {
+        width: min(520px, 100vw - 10px);
+        padding: 10px 8px;
+      }
+      .image-modal .modal-panel img {
+        max-height: calc(82vh - 180px);
+      }
+      .modal-actions {
+        gap: 6px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        display: grid;
+      }
+      .modal-actions .small-btn {
+        width: 100%;
+        min-height: 36px;
       }
     }
   </style>
