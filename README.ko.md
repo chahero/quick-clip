@@ -5,29 +5,27 @@
 
 ## 실행 방법
 
-서버를 실행합니다.
+관리 스크립트로 실행합니다.
 
 ```bash
-python main.py
+./manage.sh install    # 처음 실행: 가상환경 생성 및 의존성 설치
+./manage.sh setup      # .env.example을 복사해 .env 생성
+./manage.sh start      # quick-clip을 백그라운드로 실행
+```
+
+`manage.sh`에서 다음 명령을 제공합니다.
+
+```bash
+./manage.sh status     # 앱 실행 상태 확인
+./manage.sh logs       # 로그 보기 (`tail -f app.log`)
+./manage.sh stop       # 백그라운드 프로세스 중단
+./manage.sh restart    # 서비스 재시작
+./manage.sh help       # 전체 사용법 출력
 ```
 
 `main.py`는 `.env` 값을 자동으로 읽습니다.
 
-- `LOCAL_BUCKET_HOST` (기본값: `127.0.0.1`)
-- `LOCAL_BUCKET_PORT` (기본값: `8000`)
-- `LOCAL_BUCKET_DIR` (기본값: `./bucket`)
-- `LOCAL_BUCKET_STATIC` (기본값: `./static`)
-- `LOCAL_BUCKET_ALLOWED_PREFIXES` (기본값: `image/`)
-- `LOCAL_BUCKET_MAX_BYTES` (기본값: `10485760`)
-- `LOCAL_BUCKET_TTL_SECONDS` (기본값: `0`)
-- `LOCAL_BUCKET_MAX_FILES` (기본값: `0`)
-- `LOCAL_BUCKET_RELOAD` (기본값: `false`)
-
-개발 중 자동 재시작을 사용할 때:
-
-```bash
-LOCAL_BUCKET_RELOAD=true
-```
+`manage.sh`를 통해 애플리케이션을 시작하고 관리하는 것을 권장합니다.
 
 ## 주요 기능
 
@@ -61,3 +59,4 @@ LOCAL_BUCKET_RELOAD=true
 
 ![업로드 및 복사](./docs/screenshots/upload.png)
 ![갤러리 및 다중 삭제](./docs/screenshots/gallery.png)
+

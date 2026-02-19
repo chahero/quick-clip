@@ -7,10 +7,22 @@ Upload, copy URL/image to clipboard, and manage stored images from a simple gall
 
 ## Run
 
-Start the server with one command:
+Use the management script to run the service:
 
 ```bash
-python main.py
+./manage.sh install    # first time: create virtualenv + install dependencies
+./manage.sh setup      # create .env from .env.example
+./manage.sh start      # launch quick-clip in background
+```
+
+`manage.sh` also supports:
+
+```bash
+./manage.sh status     # check running state
+./manage.sh logs       # stream application logs (`tail -f app.log`)
+./manage.sh stop       # stop background process
+./manage.sh restart    # restart the service
+./manage.sh help       # show full command usage
 ```
 
 `main.py` reads `.env` values automatically:
@@ -56,7 +68,7 @@ LOCAL_BUCKET_RELOAD=true
 - `POST /purge`: Remove all stored images
 - `GET /health`: Health check
 
-No separate CLI launcher script is required.
+`manage.sh` is the preferred way to bootstrap and manage the app process.
 
 ## Screenshots
 
