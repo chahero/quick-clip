@@ -333,6 +333,9 @@
       font-weight: 700;
       border: 0;
       border-radius: 8px;
+      color: #e8eeff;
+      background: #152157;
+      border: 1px solid #2a3a8a;
       cursor: pointer;
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
@@ -423,6 +426,84 @@
       color: var(--muted);
       font-size: 13px;
       word-break: break-all;
+    }
+    .image-editor {
+      position: relative;
+      margin-top: 10px;
+      display: none;
+    }
+    .image-editor[aria-hidden="false"] {
+      display: block;
+    }
+    .image-editor-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .image-editor-tool-btn {
+      background: #152157;
+      border: 1px solid #2a3a8a;
+    }
+    .image-editor-tool-btn.active {
+      color: #0b102e;
+      background: linear-gradient(120deg, var(--accent), var(--accent2));
+      border-color: transparent;
+    }
+    .image-editor-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .image-editor-controls label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .image-editor-controls input[type="color"] {
+      border: 0;
+      width: 36px;
+      height: 28px;
+      padding: 0;
+      background: transparent;
+    }
+    .image-editor-controls input[type="range"] {
+      width: 130px;
+    }
+    .image-editor-canvas {
+      width: 100%;
+      height: auto;
+      border: 1px solid #2a356e;
+      border-radius: 8px;
+      background: #050814;
+      display: block;
+      margin-top: 8px;
+      touch-action: none;
+    }
+    .image-editor-text-input {
+      position: absolute;
+      z-index: 5;
+      margin: 0;
+      padding: 5px 8px;
+      border: 1px solid #2a3a8a;
+      border-radius: 6px;
+      min-width: 150px;
+      max-width: 360px;
+      font-size: 18px;
+      color: #e8eeff;
+      background: #101d4d;
+      caret-color: #fff;
+      outline: none;
+      box-shadow: 0 10px 24px #000a;
+      font-family: "Trebuchet MS", "Avenir Next", "Segoe UI", sans-serif;
+    }
+    .image-editor-status {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
     }
     .recent-section {
       margin-top: 16px;
@@ -781,7 +862,48 @@
         <h3 id="image-modal-title">Image preview</h3>
         <img id="image-modal-img" alt="Image preview" />
         <p id="image-modal-filename" class="image-modal-caption"></p>
+
+        <div id="image-editor" class="image-editor" aria-hidden="true">
+          <div class="image-editor-tools">
+            <button id="image-editor-tool-select" class="small-btn image-editor-tool-btn" type="button">Select</button>
+            <button id="image-editor-tool-brush" class="small-btn image-editor-tool-btn active" type="button">Pen</button>
+            <button id="image-editor-tool-line" class="small-btn image-editor-tool-btn" type="button">Line</button>
+            <button id="image-editor-tool-rect" class="small-btn image-editor-tool-btn" type="button">Box</button>
+            <button id="image-editor-tool-text" class="small-btn image-editor-tool-btn" type="button">Text</button>
+          </div>
+          <div class="image-editor-controls">
+            <label for="image-editor-color">
+              <span>Color</span>
+              <input id="image-editor-color" type="color" value="#ff0000" />
+            </label>
+            <label for="image-editor-size">
+              <span>Size</span>
+              <input id="image-editor-size" type="range" min="1" max="48" value="7" />
+              <span id="image-editor-size-text">7</span>
+            </label>
+          </div>
+          <canvas id="image-editor-canvas" class="image-editor-canvas" hidden></canvas>
+          <input
+            id="image-editor-text-input"
+            class="image-editor-text-input"
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Type text and press Enter"
+            hidden
+          />
+          <div class="modal-actions">
+            <button id="image-editor-undo-btn" class="small-btn secondary" type="button">Undo</button>
+            <button id="image-editor-clear-btn" class="small-btn secondary" type="button">Clear</button>
+            <button id="image-editor-delete-btn" class="small-btn danger" type="button">Delete</button>
+            <button id="image-editor-save-btn" class="small-btn btn" type="button">Save</button>
+            <button id="image-editor-cancel-btn" class="small-btn danger" type="button">Cancel</button>
+          </div>
+          <div class="image-editor-status" id="image-editor-status" aria-live="polite"></div>
+        </div>
+
         <div class="modal-actions">
+          <button id="image-modal-edit-btn" class="small-btn secondary" type="button">Edit</button>
           <button id="image-modal-copy-url-btn" class="small-btn secondary" type="button">Copy URL</button>
           <button id="image-modal-copy-image-btn" class="small-btn secondary" type="button">Copy Image</button>
           <button id="image-modal-open-btn" class="small-btn" type="button">Open URL</button>
@@ -831,10 +953,28 @@
     const imageModal = document.getElementById("image-modal");
     const imageModalImg = document.getElementById("image-modal-img");
     const imageModalFilename = document.getElementById("image-modal-filename");
+    const imageModalEditBtn = document.getElementById("image-modal-edit-btn");
     const imageModalCopyUrlBtn = document.getElementById("image-modal-copy-url-btn");
     const imageModalCopyImageBtn = document.getElementById("image-modal-copy-image-btn");
     const imageModalOpenBtn = document.getElementById("image-modal-open-btn");
     const imageModalCloseBtn = document.getElementById("image-modal-close-btn");
+    const imageEditor = document.getElementById("image-editor");
+    const imageEditorCanvas = document.getElementById("image-editor-canvas");
+    const imageEditorStatus = document.getElementById("image-editor-status");
+    const imageEditorToolSelectBtn = document.getElementById("image-editor-tool-select");
+    const imageEditorToolBrushBtn = document.getElementById("image-editor-tool-brush");
+    const imageEditorToolLineBtn = document.getElementById("image-editor-tool-line");
+    const imageEditorToolRectBtn = document.getElementById("image-editor-tool-rect");
+    const imageEditorToolTextBtn = document.getElementById("image-editor-tool-text");
+    const imageEditorTextInput = document.getElementById("image-editor-text-input");
+    const imageEditorColorInput = document.getElementById("image-editor-color");
+    const imageEditorSizeInput = document.getElementById("image-editor-size");
+    const imageEditorSizeText = document.getElementById("image-editor-size-text");
+    const imageEditorUndoBtn = document.getElementById("image-editor-undo-btn");
+    const imageEditorClearBtn = document.getElementById("image-editor-clear-btn");
+    const imageEditorSaveBtn = document.getElementById("image-editor-save-btn");
+    const imageEditorCancelBtn = document.getElementById("image-editor-cancel-btn");
+    const imageEditorDeleteBtn = document.getElementById("image-editor-delete-btn");
     const deletePrevFocus = { target: null };
 
     let listOffset = 0;
@@ -853,6 +993,47 @@
     const uploadQueue = [];
     const failedUploadQueue = [];
     let isUploadInProgress = false;
+    const MAX_EDITOR_HISTORY = 20;
+    const IMAGE_EDITOR_HIT_TOLERANCE = 10;
+    const IMAGE_EDITOR_MIN_MOVE_PX = 2;
+    const editorTools = {
+      select: "select",
+      brush: "brush",
+      line: "line",
+      rect: "rect",
+      text: "text",
+    };
+    const editorState = {
+      isOpen: false,
+      filename: "",
+      tool: editorTools.brush,
+      color: imageEditorColorInput?.value || "#ff0000",
+      strokeSize: 7,
+      isDrawing: false,
+      startX: 0,
+      startY: 0,
+      lastX: 0,
+      lastY: 0,
+      draftObject: null,
+      draggingObjectId: null,
+      dragBaseObject: null,
+      dragMoved: false,
+      pointerId: null,
+      dragStartX: 0,
+      dragStartY: 0,
+      selectedObjectId: null,
+      isTextInputOpen: false,
+      textInputObjectId: null,
+      isLoaded: false,
+      history: [],
+      maxHistory: MAX_EDITOR_HISTORY,
+      context: null,
+      naturalWidth: 0,
+      naturalHeight: 0,
+      image: null,
+      objectIdCounter: 1,
+      objects: [],
+    };
     const allowed = (file) => file?.type.startsWith("image/");
 
     const setUploadStatus = (text, isError = false) => {
@@ -1137,12 +1318,64 @@
         applyCopyStatus(err.message || "Copy image failed.", true);
       }
     });
+    imageModalEditBtn.addEventListener("click", () => {
+      void startImageEditor();
+    });
     imageModalOpenBtn.addEventListener("click", () => {
       if (!imageState?.url) return;
       window.open(imageState.url, "_blank", "noopener,noreferrer");
     });
+    imageEditorToolSelectBtn?.addEventListener("click", () => setImageEditorTool(editorTools.select));
+    imageEditorToolBrushBtn?.addEventListener("click", () => setImageEditorTool(editorTools.brush));
+    imageEditorToolLineBtn?.addEventListener("click", () => setImageEditorTool(editorTools.line));
+    imageEditorToolRectBtn?.addEventListener("click", () => setImageEditorTool(editorTools.rect));
+    imageEditorToolTextBtn?.addEventListener("click", () => setImageEditorTool(editorTools.text));
+    imageEditorTextInput?.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        hideImageEditorTextInput();
+      } else if (event.key === "Enter") {
+        event.preventDefault();
+        commitImageEditorTextInput();
+      }
+    });
+    imageEditorTextInput?.addEventListener("blur", () => {
+      commitImageEditorTextInput();
+    });
+    imageEditorColorInput?.addEventListener("input", syncImageEditorInputs);
+    imageEditorSizeInput?.addEventListener("input", syncImageEditorInputs);
+    imageEditorUndoBtn?.addEventListener("click", () => {
+      undoImageEdit();
+    });
+    imageEditorClearBtn?.addEventListener("click", () => {
+      clearImageEdit();
+    });
+    imageEditorDeleteBtn?.addEventListener("click", () => {
+      deleteSelectedEditorObject();
+    });
+    imageEditorSaveBtn?.addEventListener("click", () => {
+      void uploadEditedImage();
+    });
+    imageEditorCancelBtn?.addEventListener("click", () => {
+      closeImageEditor();
+    });
+    imageEditorCanvas?.addEventListener("pointerdown", handleEditorPointerDown);
+    imageEditorCanvas?.addEventListener("pointermove", handleEditorPointerMove);
+    imageEditorCanvas?.addEventListener("pointerup", handleEditorPointerUp);
+    imageEditorCanvas?.addEventListener("pointercancel", handleEditorPointerUp);
+    imageEditorCanvas?.addEventListener("pointerleave", handleEditorPointerUp);
+    window.addEventListener("pointerup", handleEditorPointerUp);
     window.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
+        if (editorState.isTextInputOpen) {
+          e.preventDefault();
+          hideImageEditorTextInput();
+          return;
+        }
+        if (editorState.isOpen) {
+          closeImageEditor();
+          return;
+        }
         if (!imageModal.hidden) {
           closeImageModal();
           return;
@@ -1154,6 +1387,15 @@
         if (deleteState) {
           closeDeleteModal();
           return;
+        }
+      }
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (editorState.isTextInputOpen) {
+          return;
+        }
+        if (editorState.isOpen && e.target && !["INPUT", "TEXTAREA"].includes(e.target.tagName)) {
+          e.preventDefault();
+          deleteSelectedEditorObject();
         }
       }
     });
@@ -1228,6 +1470,880 @@
       applyCopyStatus("Image copied to clipboard.");
     };
 
+    const setImageEditorTool = (tool) => {
+      editorState.tool = tool;
+      const tools = {
+        [editorTools.select]: imageEditorToolSelectBtn,
+        [editorTools.brush]: imageEditorToolBrushBtn,
+        [editorTools.line]: imageEditorToolLineBtn,
+        [editorTools.rect]: imageEditorToolRectBtn,
+        [editorTools.text]: imageEditorToolTextBtn,
+      };
+      Object.values(tools).forEach((button) => button?.classList.toggle("active", false));
+      const selected = tools[tool];
+      if (selected) selected.classList.add("active");
+      if (tool === editorTools.select) {
+        setImageEditorStatus("Select mode: click an object to move.");
+      } else if (tool === editorTools.text) {
+        setImageEditorStatus("Text mode: click on image to place text.");
+      } else if (tool === editorTools.line) {
+        setImageEditorStatus("Line mode: click and drag.");
+      } else if (tool === editorTools.rect) {
+        setImageEditorStatus("Box mode: click and drag.");
+      } else {
+        setImageEditorStatus("Pen mode: draw on image.");
+      }
+    };
+
+    const setImageEditorStatus = (message) => {
+      if (!imageEditorStatus) return;
+      imageEditorStatus.textContent = message || "";
+    };
+
+    const hideImageEditorTextInput = () => {
+      if (!imageEditorTextInput || !editorState.isTextInputOpen) return;
+      imageEditorTextInput.hidden = true;
+      imageEditorTextInput.value = "";
+      imageEditorTextInput.dataset.objectId = "";
+      imageEditorTextInput.dataset.x = "";
+      imageEditorTextInput.dataset.y = "";
+      editorState.isTextInputOpen = false;
+      editorState.textInputObjectId = null;
+      if (editorState.pointerId != null) {
+        try {
+          imageEditorCanvas?.releasePointerCapture(editorState.pointerId);
+        } catch (_) {
+          // ignore
+        }
+        editorState.pointerId = null;
+      }
+      editorState.isDrawing = false;
+    };
+
+    const findNearbyTextObjectForPosition = (position, matchText) => {
+      if (!position) return null;
+      const tolerance = Math.max(8, editorState.strokeSize + 2);
+      for (let index = editorState.objects.length - 1; index >= 0; index -= 1) {
+        const object = editorState.objects[index];
+        if (!object || object.type !== editorTools.text) continue;
+        if (object.text !== matchText) continue;
+        if (Math.abs(object.x - position.x) > tolerance) continue;
+        if (Math.abs(object.y - position.y) > tolerance) continue;
+        return object;
+      }
+      return null;
+    };
+
+    const commitImageEditorTextInput = () => {
+      if (!imageEditorTextInput || !editorState.isTextInputOpen) return;
+      const text = (imageEditorTextInput.value || "").trim();
+      const objectId = imageEditorTextInput.dataset.objectId || "";
+      const x = Number(imageEditorTextInput.dataset.x);
+      const y = Number(imageEditorTextInput.dataset.y);
+
+      if (!text) {
+        setImageEditorStatus("No change.");
+        hideImageEditorTextInput();
+        return;
+      }
+
+      const normalizedX = Number.isFinite(x) ? x : 0;
+      const normalizedY = Number.isFinite(y) ? y : 0;
+      const fontSize = Math.max(12, Math.round(editorState.strokeSize * 3));
+
+      if (objectId) {
+        const target = editorState.objects.find(
+          (object) => object.id === objectId && object.type === editorTools.text,
+        );
+        if (target) {
+          if (target.text !== text || target.fontSize !== fontSize || target.color !== editorState.color) {
+            target.text = text;
+            target.fontSize = fontSize;
+            target.color = editorState.color;
+            pushEditorHistory();
+          }
+          editorState.selectedObjectId = target.id;
+          renderImageEditor();
+          setImageEditorTool(editorTools.select);
+          setImageEditorStatus("Text updated.");
+        } else {
+          const nearbyTarget = findNearbyTextObjectForPosition({ x: normalizedX, y: normalizedY }, text);
+          if (nearbyTarget) {
+            if (nearbyTarget.text !== text || nearbyTarget.fontSize !== fontSize || nearbyTarget.color !== editorState.color) {
+              nearbyTarget.text = text;
+              nearbyTarget.fontSize = fontSize;
+              nearbyTarget.color = editorState.color;
+              pushEditorHistory();
+            }
+            editorState.selectedObjectId = nearbyTarget.id;
+            renderImageEditor();
+            setImageEditorTool(editorTools.select);
+            setImageEditorStatus("Text updated.");
+          } else {
+            setImageEditorStatus("Object not found.");
+          }
+        }
+        hideImageEditorTextInput();
+        return;
+      }
+
+      const nearbyTarget = findNearbyTextObjectForPosition({ x: normalizedX, y: normalizedY }, text);
+      if (nearbyTarget) {
+        if (nearbyTarget.text !== text || nearbyTarget.fontSize !== fontSize || nearbyTarget.color !== editorState.color) {
+          nearbyTarget.text = text;
+          nearbyTarget.fontSize = fontSize;
+          nearbyTarget.color = editorState.color;
+          pushEditorHistory();
+        }
+        editorState.selectedObjectId = nearbyTarget.id;
+        renderImageEditor();
+        setImageEditorTool(editorTools.select);
+        setImageEditorStatus("Text updated.");
+        hideImageEditorTextInput();
+        return;
+      }
+
+      const textObject = {
+        id: createEditorObjectId(),
+        type: editorTools.text,
+        x: normalizedX,
+        y: normalizedY,
+        color: editorState.color,
+        fontSize,
+        text,
+      };
+      editorState.objects.push(textObject);
+      editorState.selectedObjectId = textObject.id;
+      pushEditorHistory();
+      renderImageEditor();
+      setImageEditorTool(editorTools.select);
+      setImageEditorStatus("Text added.");
+      hideImageEditorTextInput();
+    };
+
+    const openImageEditorTextInput = (position, targetObject = null) => {
+      if (!editorState.isLoaded || !imageEditorCanvas || !imageEditorTextInput || !position) return;
+      hideImageEditorTextInput();
+      const canvasRect = imageEditorCanvas.getBoundingClientRect();
+      const editorRect = imageEditor.getBoundingClientRect();
+      const x = Math.max(0, Math.min(editorState.naturalWidth, position.x));
+      const y = Math.max(0, Math.min(editorState.naturalHeight, position.y));
+      const text = targetObject?.type === editorTools.text ? targetObject.text || "" : "";
+      const fontSize = Math.max(12, Math.round(editorState.strokeSize * 3));
+      const leftFromClick = Number.isFinite(position.clientX) ? Math.round(position.clientX - editorRect.left) : null;
+      const topFromClick = Number.isFinite(position.clientY) ? Math.round(position.clientY - editorRect.top) : null;
+      const leftFromScale = Math.round(canvasRect.left - editorRect.left + (x / editorState.naturalWidth) * canvasRect.width);
+      const topFromScale = Math.round(canvasRect.top - editorRect.top + (y / editorState.naturalHeight) * canvasRect.height);
+      const left = leftFromClick != null ? leftFromClick : leftFromScale;
+      const top = topFromClick != null ? topFromClick : topFromScale;
+      const charWidthEstimate = Math.max(7, Math.round(fontSize * 0.6));
+      const expectedWidth = Math.min(360, Math.max(150, (text.length + 6) * charWidthEstimate));
+      let safeLeft = left;
+      const leftBound = imageEditor.clientWidth - expectedWidth - 8;
+      if (safeLeft < 8) {
+        safeLeft = 8;
+      }
+      if (safeLeft > leftBound) {
+        safeLeft = leftBound;
+      }
+      safeLeft = Math.round(safeLeft);
+      let safeTop = top;
+      const topBound = imageEditor.clientHeight - 40;
+      if (safeTop < 8) {
+        safeTop = 8;
+      }
+      if (safeTop > topBound) {
+        safeTop = topBound;
+      }
+      safeTop = Math.round(safeTop);
+
+      imageEditorTextInput.value = text;
+      imageEditorTextInput.style.fontSize = `${fontSize}px`;
+      imageEditorTextInput.style.width = `${expectedWidth}px`;
+      imageEditorTextInput.style.left = `${safeLeft}px`;
+      imageEditorTextInput.style.top = `${safeTop}px`;
+      imageEditorTextInput.dataset.objectId = targetObject?.id || "";
+      imageEditorTextInput.dataset.x = String(x);
+      imageEditorTextInput.dataset.y = String(y);
+      editorState.textInputObjectId = targetObject?.id || null;
+      editorState.isTextInputOpen = true;
+      imageEditorTextInput.hidden = false;
+      imageEditorTextInput.focus();
+      imageEditorTextInput.select();
+      setImageEditorStatus(targetObject?.type === editorTools.text ? "Edit text. Press Enter to confirm, Esc to cancel." : "Type text. Press Enter to confirm, Esc to cancel.");
+    };
+
+    const createEditorObjectId = () => `obj-${editorState.objectIdCounter++}`;
+
+    const cloneEditorObject = (object) => {
+      if (!object) return null;
+      const copy = { ...object };
+      if (object.type === editorTools.brush && Array.isArray(object.points)) {
+        copy.points = object.points.map((point) => ({ ...point }));
+      }
+      return copy;
+    };
+
+    const syncEditorObjectCounter = () => {
+      const maxId = editorState.objects.reduce((acc, object) => {
+        if (!object?.id) return acc;
+        const raw = String(object.id).replace(/^obj-/, "");
+        const value = parseInt(raw, 10);
+        return Number.isFinite(value) ? Math.max(acc, value) : acc;
+      }, 0);
+      editorState.objectIdCounter = Math.max(editorState.objectIdCounter, maxId + 1);
+    };
+
+    const createEditorSnapshot = () => ({
+      objects: editorState.objects.map(cloneEditorObject),
+      selectedObjectId: editorState.selectedObjectId,
+    });
+
+    const restoreEditorSnapshot = (snapshot) => {
+      editorState.objects = (snapshot?.objects || []).map(cloneEditorObject);
+      editorState.selectedObjectId = snapshot?.selectedObjectId || null;
+      if (editorState.selectedObjectId && !editorState.objects.some((object) => object.id === editorState.selectedObjectId)) {
+        editorState.selectedObjectId = null;
+      }
+      syncEditorObjectCounter();
+    };
+
+    const pushEditorHistory = () => {
+      editorState.history.push(createEditorSnapshot());
+      if (editorState.history.length > editorState.maxHistory) {
+        editorState.history.shift();
+      }
+    };
+
+    const restoreEditorFromHistory = (target = editorState.history.length - 1) => {
+      if (!editorState.history.length) return;
+      const index = Math.min(Math.max(target, 0), editorState.history.length - 1);
+      restoreEditorSnapshot(editorState.history[index]);
+      editorState.history = editorState.history.slice(0, index + 1);
+      renderImageEditor();
+    };
+
+    const normalizeRect = (x, y, width, height) => {
+      const normalizedX = width < 0 ? x + width : x;
+      const normalizedY = height < 0 ? y + height : y;
+      return {
+        x: normalizedX,
+        y: normalizedY,
+        width: Math.abs(width),
+        height: Math.abs(height),
+      };
+    };
+
+    const renderImageEditor = () => {
+      if (!editorState.context || !editorState.image) return;
+      const context = editorState.context;
+      context.clearRect(0, 0, editorState.naturalWidth, editorState.naturalHeight);
+      context.drawImage(editorState.image, 0, 0, editorState.naturalWidth, editorState.naturalHeight);
+      editorState.objects.forEach((object) => {
+        renderEditorObject(context, object);
+      });
+      if (editorState.draftObject) {
+        renderEditorObject(context, editorState.draftObject);
+      }
+      const selectedObject = editorState.objects.find((object) => object.id === editorState.selectedObjectId);
+      if (selectedObject) {
+        renderEditorSelection(context, selectedObject);
+      }
+      imageEditorCanvas.hidden = false;
+      imageEditor.setAttribute("aria-hidden", "false");
+    };
+
+    const startImageEditor = async () => {
+      if (!imageState?.url || !imageEditorCanvas || !imageEditor) {
+        return;
+      }
+      setImageEditorStatus("Loading image...");
+      hideImageEditorTextInput();
+      imageModalEditBtn.disabled = true;
+      imageModalImg.hidden = true;
+      imageEditor.setAttribute("aria-hidden", "false");
+
+      editorState.color = imageEditorColorInput?.value || "#ff0000";
+      editorState.strokeSize = parseInt(imageEditorSizeInput?.value, 10) || 7;
+      editorState.tool = editorTools.brush;
+      editorState.isLoaded = false;
+      editorState.isDrawing = false;
+      editorState.draftObject = null;
+      editorState.draggingObjectId = null;
+      editorState.dragBaseObject = null;
+      editorState.dragMoved = false;
+      editorState.pointerId = null;
+      editorState.selectedObjectId = null;
+      editorState.history = [];
+      editorState.objects = [];
+      editorState.objectIdCounter = 1;
+      imageEditorSizeText.textContent = String(editorState.strokeSize);
+
+      try {
+        const loaded = await new Promise((resolve, reject) => {
+          const image = new Image();
+          image.crossOrigin = "anonymous";
+          image.onload = () => resolve(image);
+          image.onerror = () => reject(new Error("Failed to load image."));
+          image.src = imageState.url;
+        });
+
+        editorState.image = loaded;
+        editorState.naturalWidth = loaded.naturalWidth || loaded.width || 1;
+        editorState.naturalHeight = loaded.naturalHeight || loaded.height || 1;
+        imageEditorCanvas.width = editorState.naturalWidth;
+        imageEditorCanvas.height = editorState.naturalHeight;
+        editorState.context = imageEditorCanvas.getContext("2d");
+        editorState.filename = imageState.filename || "image";
+        renderImageEditor();
+        pushEditorHistory();
+        editorState.isLoaded = true;
+        editorState.isOpen = true;
+        setImageEditorTool(editorTools.brush);
+      } catch (err) {
+        setImageEditorStatus("Failed to open editor.");
+        applyCopyStatus(err.message || "Failed to open image editor.", true);
+        closeImageEditor();
+      }
+    };
+
+    const getDistance = (x1, y1, x2, y2) => {
+      const dx = x1 - x2;
+      const dy = y1 - y2;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+
+    const getDistanceToSegment = (pointX, pointY, x1, y1, x2, y2) => {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      if (dx === 0 && dy === 0) {
+        return getDistance(pointX, pointY, x1, y1);
+      }
+      const t = ((pointX - x1) * dx + (pointY - y1) * dy) / (dx * dx + dy * dy);
+      const clamped = Math.max(0, Math.min(1, t));
+      const nearestX = x1 + clamped * dx;
+      const nearestY = y1 + clamped * dy;
+      return getDistance(pointX, pointY, nearestX, nearestY);
+    };
+
+    const getObjectBounds = (object) => {
+      if (!object) return null;
+      if (object.type === editorTools.brush) {
+        if (!object.points?.length) return null;
+        const xs = object.points.map((point) => point.x);
+        const ys = object.points.map((point) => point.y);
+        const minX = Math.min(...xs);
+        const minY = Math.min(...ys);
+        const maxX = Math.max(...xs);
+        const maxY = Math.max(...ys);
+        return {
+          x: minX - object.lineWidth / 2,
+          y: minY - object.lineWidth / 2,
+          width: Math.max(1, maxX - minX + object.lineWidth),
+          height: Math.max(1, maxY - minY + object.lineWidth),
+        };
+      }
+      if (object.type === editorTools.line) {
+        return {
+          x: Math.min(object.x1, object.x2) - object.lineWidth / 2,
+          y: Math.min(object.y1, object.y2) - object.lineWidth / 2,
+          width: Math.abs(object.x2 - object.x1) + object.lineWidth,
+          height: Math.abs(object.y2 - object.y1) + object.lineWidth,
+        };
+      }
+      if (object.type === editorTools.rect) {
+        const normalized = normalizeRect(object.x, object.y, object.width, object.height);
+        return {
+          ...normalized,
+          x: normalized.x - object.lineWidth / 2,
+          y: normalized.y - object.lineWidth / 2,
+          width: normalized.width + object.lineWidth,
+          height: normalized.height + object.lineWidth,
+        };
+      }
+      if (object.type === editorTools.text) {
+        const context = editorState.context;
+        if (!context) return null;
+        const fontSize = object.fontSize || 16;
+        context.save();
+        context.font = `${fontSize}px Arial, sans-serif`;
+        const metrics = context.measureText(object.text || "");
+        context.restore();
+        return {
+          x: Math.max(0, object.x - 6),
+          y: Math.max(0, object.y - 6),
+          width: Math.max(1, metrics.width + 12),
+          height: fontSize + 12,
+        };
+      }
+      return null;
+    };
+
+    const isPointInsideBrushObject = (object, position) => {
+      const lineWidth = object.lineWidth || editorState.strokeSize;
+      const hitTolerance = Math.max(IMAGE_EDITOR_HIT_TOLERANCE, lineWidth + 2);
+      if (!object.points?.length) return false;
+      if (object.points.length === 1) {
+        const point = object.points[0];
+        return getDistance(position.x, position.y, point.x, point.y) <= hitTolerance;
+      }
+      for (let index = 1; index < object.points.length; index += 1) {
+        const start = object.points[index - 1];
+        const end = object.points[index];
+        if (getDistanceToSegment(position.x, position.y, start.x, start.y, end.x, end.y) <= hitTolerance) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const isPointInsideLineObject = (object, position) => {
+      const lineWidth = object.lineWidth || editorState.strokeSize;
+      const hitTolerance = Math.max(IMAGE_EDITOR_HIT_TOLERANCE, lineWidth + 2);
+      return getDistanceToSegment(position.x, position.y, object.x1, object.y1, object.x2, object.y2) <= hitTolerance;
+    };
+
+    const isPointInsideRectObject = (object, position) => {
+      const bounds = getObjectBounds(object);
+      if (!bounds) return false;
+      const hitTolerance = Math.max(IMAGE_EDITOR_HIT_TOLERANCE, object.lineWidth / 2 + 2);
+      return (
+        position.x >= bounds.x - hitTolerance
+        && position.x <= bounds.x + bounds.width + hitTolerance
+        && position.y >= bounds.y - hitTolerance
+        && position.y <= bounds.y + bounds.height + hitTolerance
+      );
+    };
+
+    const isPointInsideTextObject = (object, position) => {
+      const bounds = getObjectBounds(object);
+      if (!bounds) return false;
+      const hitTolerance = IMAGE_EDITOR_HIT_TOLERANCE + 6;
+      return (
+        position.x >= bounds.x - hitTolerance
+        && position.x <= bounds.x + bounds.width + hitTolerance
+        && position.y >= bounds.y - hitTolerance
+        && position.y <= bounds.y + bounds.height + hitTolerance
+      );
+    };
+
+    const isPointInEditorObject = (object, position) => {
+      if (!object || !position) return false;
+      if (object.type === editorTools.brush) return isPointInsideBrushObject(object, position);
+      if (object.type === editorTools.line) return isPointInsideLineObject(object, position);
+      if (object.type === editorTools.rect) return isPointInsideRectObject(object, position);
+      if (object.type === editorTools.text) return isPointInsideTextObject(object, position);
+      return false;
+    };
+
+    const hitTestEditorObject = (position) => {
+      for (let index = editorState.objects.length - 1; index >= 0; index -= 1) {
+        const object = editorState.objects[index];
+        if (isPointInEditorObject(object, position)) {
+          return object;
+        }
+      }
+      return null;
+    };
+
+    const applyEditorObjectStyle = (context, object) => {
+      context.strokeStyle = object.color;
+      context.fillStyle = object.color;
+      context.lineWidth = object.lineWidth;
+      context.lineCap = "round";
+      context.lineJoin = "round";
+    };
+
+    const renderEditorObject = (context, object) => {
+      if (!object) return;
+      applyEditorObjectStyle(context, object);
+      if (object.type === editorTools.brush) {
+        if (!object.points?.length) return;
+        context.beginPath();
+        const first = object.points[0];
+        context.moveTo(first.x, first.y);
+        object.points.slice(1).forEach((point) => {
+          context.lineTo(point.x, point.y);
+        });
+        context.stroke();
+        return;
+      }
+      if (object.type === editorTools.line) {
+        context.beginPath();
+        context.moveTo(object.x1, object.y1);
+        context.lineTo(object.x2, object.y2);
+        context.stroke();
+        return;
+      }
+      if (object.type === editorTools.rect) {
+        const normalized = normalizeRect(object.x, object.y, object.width, object.height);
+        context.strokeRect(normalized.x, normalized.y, normalized.width, normalized.height);
+        return;
+      }
+      if (object.type === editorTools.text) {
+        const fontSize = object.fontSize || 16;
+        context.font = `${fontSize}px Arial, sans-serif`;
+        context.textBaseline = "top";
+        context.fillText(object.text || "", object.x, object.y);
+      }
+    };
+
+    const renderEditorSelection = (context, object) => {
+      const bounds = getObjectBounds(object);
+      if (!bounds) return;
+      context.save();
+      context.setLineDash([6, 4]);
+      context.strokeStyle = "rgba(95, 209, 255, 0.9)";
+      context.lineWidth = 1;
+      context.strokeRect(bounds.x - 4, bounds.y - 4, bounds.width + 8, bounds.height + 8);
+      context.setLineDash([]);
+      context.fillStyle = "rgba(95, 209, 255, 0.15)";
+      context.fillRect(bounds.x - 3, bounds.y - 3, bounds.width + 6, bounds.height + 6);
+      context.restore();
+    };
+
+    const moveEditorObject = (object, baseObject, deltaX, deltaY) => {
+      if (!object || !baseObject) return;
+      if (object.type === editorTools.brush) {
+        object.points = (baseObject.points || []).map((point) => ({
+          x: point.x + deltaX,
+          y: point.y + deltaY,
+        }));
+      } else if (object.type === editorTools.line) {
+        object.x1 = baseObject.x1 + deltaX;
+        object.y1 = baseObject.y1 + deltaY;
+        object.x2 = baseObject.x2 + deltaX;
+        object.y2 = baseObject.y2 + deltaY;
+      } else if (object.type === editorTools.rect) {
+        object.x = baseObject.x + deltaX;
+        object.y = baseObject.y + deltaY;
+      } else if (object.type === editorTools.text) {
+        object.x = baseObject.x + deltaX;
+        object.y = baseObject.y + deltaY;
+      }
+    };
+
+    const getEditorPointerPosition = (event) => {
+      if (!imageEditorCanvas || !editorState.naturalWidth || !editorState.naturalHeight) {
+        return null;
+      }
+      const source = event;
+      const rect = imageEditorCanvas.getBoundingClientRect();
+      if (!source || source.clientX == null || source.clientY == null) {
+        return null;
+      }
+      const scaleX = editorState.naturalWidth / rect.width;
+      const scaleY = editorState.naturalHeight / rect.height;
+      const x = Math.max(0, Math.min(editorState.naturalWidth - 1, (source.clientX - rect.left) * scaleX));
+      const y = Math.max(0, Math.min(editorState.naturalHeight - 1, (source.clientY - rect.top) * scaleY));
+      return {
+        x,
+        y,
+        clientX: source.clientX,
+        clientY: source.clientY,
+      };
+    };
+
+    const deleteSelectedEditorObject = () => {
+      if (!editorState.selectedObjectId) {
+        setImageEditorStatus("No selected object.");
+        return;
+      }
+      const next = editorState.objects.filter((object) => object.id !== editorState.selectedObjectId);
+      if (next.length === editorState.objects.length) {
+        setImageEditorStatus("Object not found.");
+        return;
+      }
+      editorState.objects = next;
+      editorState.selectedObjectId = null;
+      pushEditorHistory();
+      renderImageEditor();
+      setImageEditorStatus("Object deleted.");
+    };
+
+    function handleEditorPointerMove(event) {
+      if (!editorState.isLoaded || !editorState.context || !editorState.isDrawing) return;
+      if (editorState.pointerId != null && event.pointerId !== editorState.pointerId) return;
+      const position = getEditorPointerPosition(event);
+      if (!position) return;
+      event.preventDefault();
+
+      const movingObject = editorState.objects.find((object) => object.id === editorState.draggingObjectId);
+      if (movingObject && editorState.dragBaseObject) {
+        const deltaX = position.x - editorState.dragStartX;
+        const deltaY = position.y - editorState.dragStartY;
+        const moveDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        if (moveDistance < IMAGE_EDITOR_MIN_MOVE_PX) return;
+        editorState.dragMoved = true;
+        moveEditorObject(movingObject, editorState.dragBaseObject, deltaX, deltaY);
+        renderImageEditor();
+        return;
+      }
+
+      if (!editorState.draftObject) return;
+      if (editorState.draftObject.type === editorTools.brush) {
+        const last = editorState.draftObject.points[editorState.draftObject.points.length - 1];
+        const dx = position.x - last.x;
+        const dy = position.y - last.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance < IMAGE_EDITOR_MIN_MOVE_PX) return;
+        editorState.draftObject.points.push(position);
+      } else if (editorState.draftObject.type === editorTools.line) {
+        const dx = position.x - editorState.startX;
+        const dy = position.y - editorState.startY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance < IMAGE_EDITOR_MIN_MOVE_PX) return;
+        editorState.draftObject.x2 = position.x;
+        editorState.draftObject.y2 = position.y;
+      } else if (editorState.draftObject.type === editorTools.rect) {
+        const dx = position.x - editorState.startX;
+        const dy = position.y - editorState.startY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance < IMAGE_EDITOR_MIN_MOVE_PX) return;
+        editorState.draftObject.width = position.x - editorState.draftObject.x;
+        editorState.draftObject.height = position.y - editorState.draftObject.y;
+      }
+      renderImageEditor();
+    }
+
+    function handleEditorPointerUp(event) {
+      if (!editorState.isLoaded || !editorState.context || event.pointerId == null) return;
+      if (editorState.pointerId != null && event.pointerId !== editorState.pointerId) return;
+      const movingObjectId = editorState.draggingObjectId;
+      const draftObject = editorState.draftObject;
+
+      if (editorState.pointerId != null && event.pointerId === editorState.pointerId) {
+        try {
+          imageEditorCanvas?.releasePointerCapture(editorState.pointerId);
+        } catch (_) {
+          // ignore
+        }
+        editorState.pointerId = null;
+      }
+
+      if (!editorState.isDrawing && !movingObjectId && !draftObject) {
+        return;
+      }
+
+      editorState.isDrawing = false;
+      editorState.draggingObjectId = null;
+      editorState.draftObject = null;
+
+      if (movingObjectId && editorState.dragBaseObject) {
+        editorState.dragBaseObject = null;
+        if (editorState.dragMoved) {
+          pushEditorHistory();
+          setImageEditorStatus("Object moved.");
+        } else {
+          setImageEditorStatus("Object selected.");
+        }
+        editorState.dragMoved = false;
+        return;
+      }
+
+      if (!draftObject) {
+        return;
+      }
+
+      if (draftObject.type === editorTools.brush && draftObject.points.length <= 1) {
+        setImageEditorStatus("No change.");
+        return;
+      }
+      if (draftObject.type === editorTools.line && draftObject.x1 === draftObject.x2 && draftObject.y1 === draftObject.y2) {
+        setImageEditorStatus("No change.");
+        return;
+      }
+      if (draftObject.type === editorTools.rect && draftObject.width === 0 && draftObject.height === 0) {
+        setImageEditorStatus("No change.");
+        return;
+      }
+
+      editorState.objects.push(draftObject);
+      editorState.selectedObjectId = draftObject.id;
+      pushEditorHistory();
+      renderImageEditor();
+      setImageEditorTool(editorTools.select);
+      setImageEditorStatus("Object added.");
+    }
+
+    function handleEditorPointerDown(event) {
+      if (!editorState.isLoaded || !editorState.context) return;
+      if (event.button != null && event.button !== 0) return;
+      if (editorState.pointerId != null) return;
+      if (editorState.isTextInputOpen) {
+        hideImageEditorTextInput();
+      }
+      const position = getEditorPointerPosition(event);
+      if (!position) return;
+      event.preventDefault();
+
+      if (event.pointerId != null) {
+        editorState.pointerId = event.pointerId;
+        try {
+          imageEditorCanvas?.setPointerCapture(event.pointerId);
+        } catch (_) {
+          // ignore
+        }
+      }
+
+      if (editorState.tool === editorTools.text) {
+        editorState.startX = position.x;
+        editorState.startY = position.y;
+        const hitObject = hitTestEditorObject(position);
+        if (hitObject?.type === editorTools.text) {
+          openImageEditorTextInput(position, hitObject);
+          return;
+        }
+
+        openImageEditorTextInput(position);
+        return;
+      }
+
+      const hitObject = hitTestEditorObject(position);
+      if (editorState.tool === editorTools.select) {
+        editorState.selectedObjectId = hitObject ? hitObject.id : null;
+        if (!hitObject) {
+          renderImageEditor();
+          setImageEditorStatus("Select mode: click an object to move.");
+          return;
+        }
+      }
+
+      if (hitObject) {
+        editorState.isDrawing = true;
+        editorState.draggingObjectId = hitObject.id;
+        editorState.dragBaseObject = cloneEditorObject(hitObject);
+        editorState.dragStartX = position.x;
+        editorState.dragStartY = position.y;
+        editorState.startX = position.x;
+        editorState.startY = position.y;
+        editorState.dragMoved = false;
+        editorState.selectedObjectId = hitObject.id;
+        renderImageEditor();
+        setImageEditorStatus("Object selected. Drag to move, Delete to remove.");
+        return;
+      }
+
+      editorState.startX = position.x;
+      editorState.startY = position.y;
+
+      const draftObject = {
+        id: createEditorObjectId(),
+        type: editorState.tool,
+        color: editorState.color,
+        lineWidth: editorState.strokeSize,
+      };
+      if (editorState.tool === editorTools.brush) {
+        draftObject.points = [position];
+      } else if (editorState.tool === editorTools.line) {
+        draftObject.x1 = position.x;
+        draftObject.y1 = position.y;
+        draftObject.x2 = position.x;
+        draftObject.y2 = position.y;
+      } else {
+        draftObject.x = position.x;
+        draftObject.y = position.y;
+        draftObject.width = 0;
+        draftObject.height = 0;
+      }
+      editorState.draftObject = draftObject;
+      editorState.isDrawing = true;
+      setImageEditorStatus("Drawing...");
+      renderImageEditor();
+    }
+
+    const undoImageEdit = () => {
+      if (editorState.history.length <= 1) {
+        setImageEditorStatus("Nothing to undo.");
+        return;
+      }
+      editorState.history.pop();
+      restoreEditorFromHistory(editorState.history.length - 1);
+      setImageEditorStatus("Undo done.");
+    };
+
+    const clearImageEdit = () => {
+      editorState.objects = [];
+      editorState.selectedObjectId = null;
+      pushEditorHistory();
+      renderImageEditor();
+      setImageEditorStatus("All objects cleared.");
+    };
+
+    const uploadEditedImage = async () => {
+      if (!editorState.context || !editorState.isLoaded) return;
+      if (imageEditorSaveBtn) imageEditorSaveBtn.disabled = true;
+      try {
+        const blob = await new Promise((resolve) => {
+          imageEditorCanvas.toBlob((value) => resolve(value), "image/png", 0.98);
+        });
+        if (!blob) {
+          throw new Error("Failed to generate edited image.");
+        }
+        const stem = editorState.filename.replace(/\.[^.]+$/, "") || "image";
+        const file = new File([blob], `${stem}-edited.png`, { type: "image/png" });
+        const result = await uploadSingleFile(file);
+        applyUploadedFileToUi(result);
+        await loadRecentUploads();
+        galleryNeedsRefresh = true;
+        if (activeTab === "gallery") {
+          await resetList();
+          galleryNeedsRefresh = false;
+        } else {
+          setUploadStatus("Edited image uploaded.");
+        }
+        closeImageEditor();
+        applyCopyStatus("Edited image uploaded.");
+      } catch (err) {
+        applyCopyStatus(err.message || "Failed to save edited image.", true);
+      } finally {
+        if (imageEditorSaveBtn) imageEditorSaveBtn.disabled = false;
+      }
+    };
+
+    const closeImageEditor = () => {
+      hideImageEditorTextInput();
+      if (editorState.context) {
+        editorState.context = null;
+      }
+      editorState.isLoaded = false;
+      editorState.isDrawing = false;
+      editorState.draftObject = null;
+      editorState.draggingObjectId = null;
+      editorState.dragBaseObject = null;
+      editorState.dragMoved = false;
+      editorState.pointerId = null;
+      editorState.history = [];
+      editorState.selectedObjectId = null;
+      editorState.objects = [];
+      editorState.image = null;
+      editorState.isOpen = false;
+      if (imageEditorCanvas) imageEditorCanvas.hidden = true;
+      if (imageEditor) imageEditor.setAttribute("aria-hidden", "true");
+      if (imageModalImg) imageModalImg.hidden = false;
+      if (imageModalEditBtn) imageModalEditBtn.disabled = false;
+      setImageEditorStatus("");
+    };
+
+    function syncImageEditorInputs() {
+      editorState.color = imageEditorColorInput?.value || editorState.color;
+      editorState.strokeSize = parseInt(imageEditorSizeInput?.value, 10) || editorState.strokeSize;
+      imageEditorSizeText.textContent = String(editorState.strokeSize);
+      if (editorState.selectedObjectId) {
+        const selected = editorState.objects.find((object) => object.id === editorState.selectedObjectId);
+        if (selected) {
+          selected.color = editorState.color;
+          if (selected.type === editorTools.text) {
+            selected.fontSize = Math.max(12, Math.round(editorState.strokeSize * 3));
+          } else {
+            selected.lineWidth = editorState.strokeSize;
+          }
+          renderImageEditor();
+        }
+      }
+      setImageEditorStatus(`Color: ${editorState.color}, Size: ${editorState.strokeSize}`);
+    }
+
     const renderGridItem = (item) => {
       const row = document.createElement("div");
       row.className = "item";
@@ -1287,7 +2403,6 @@
       del.addEventListener("click", () => {
         openDeleteModal(item, row, del);
       });
-
       const meta = document.createElement("div");
       const ttl = item.ttl_seconds_remaining === null
         ? "ttl: n/a"
@@ -1372,7 +2487,6 @@
       del.addEventListener("click", () => {
         openDeleteModal(item, row, del);
       });
-
       actions.appendChild(copy);
       actions.appendChild(copyImage);
       actions.appendChild(del);
@@ -1455,7 +2569,6 @@
       del.addEventListener("click", () => {
         openDeleteModal(item, row, del);
       });
-
       actions.appendChild(copy);
       actions.appendChild(copyImage);
       actions.appendChild(del);
@@ -1697,6 +2810,9 @@
 
     function openImageModal(item) {
       if (!item?.url) return;
+      if (editorState.isOpen) {
+        closeImageEditor();
+      }
       imageState = {
         filename: item.filename || "image",
         url: item.url,
@@ -1704,12 +2820,18 @@
       imagePrevFocus.target = document.activeElement;
       imageModalFilename.textContent = imageState.filename;
       imageModalImg.src = imageState.url;
+      imageModalImg.hidden = false;
+      if (imageModalEditBtn) imageModalEditBtn.disabled = false;
+      setImageEditorStatus("");
       imageModal.hidden = false;
       imageModal.setAttribute("aria-hidden", "false");
       window.requestAnimationFrame(() => imageModalCloseBtn.focus());
     }
 
     function closeImageModal() {
+      if (editorState.isOpen) {
+        closeImageEditor();
+      }
       imageState = null;
       imageModal.hidden = true;
       imageModal.setAttribute("aria-hidden", "true");
