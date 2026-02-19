@@ -996,6 +996,11 @@
     const MAX_EDITOR_HISTORY = 20;
     const IMAGE_EDITOR_HIT_TOLERANCE = 10;
     const IMAGE_EDITOR_MIN_MOVE_PX = 2;
+    const IMAGE_EDITOR_HANDLE_SIZE = 10;
+    const IMAGE_EDITOR_MIN_SCALE = 0.1;
+    const IMAGE_EDITOR_MAX_SCALE = 30;
+    const IMAGE_EDITOR_SCALE_STEP = 1.12;
+    const IMAGE_EDITOR_ROTATE_STEP_DEG = 8;
     const editorTools = {
       select: "select",
       brush: "brush",
@@ -1018,6 +1023,11 @@
       draggingObjectId: null,
       dragBaseObject: null,
       dragMoved: false,
+      dragMode: null,
+      dragHandle: null,
+      dragHandleStartAngle: 0,
+      dragHandleStartDistance: 0,
+      dragHandleStartScale: 1,
       pointerId: null,
       dragStartX: 0,
       dragStartY: 0,
@@ -1366,6 +1376,8 @@
     imageEditorCanvas?.addEventListener("pointerleave", handleEditorPointerUp);
     window.addEventListener("pointerup", handleEditorPointerUp);
     window.addEventListener("keydown", (e) => {
+      const targetTag = e.target && e.target.tagName;
+      const isTextField = targetTag && ["INPUT", "TEXTAREA"].includes(targetTag);
       if (e.key === "Escape") {
         if (editorState.isTextInputOpen) {
           e.preventDefault();
@@ -1389,14 +1401,142 @@
           return;
         }
       }
-      if (e.key === "Delete" || e.key === "Backspace") {
+      if (!editorState.isOpen || isTextField) {
+        return;
+      }
+      const key = e.key.toLowerCase();
+      if (key === "v") {
+        e.preventDefault();
+        setImageEditorTool(editorTools.select);
+        setImageEditorStatus("Select tool (V).");
+        return;
+      }
+      if (key === "p" || key === "b") {
+        e.preventDefault();
+        setImageEditorTool(editorTools.brush);
+        setImageEditorStatus("Pen tool (P).");
+        return;
+      }
+      if (key === "l") {
+        e.preventDefault();
+        setImageEditorTool(editorTools.line);
+        setImageEditorStatus("Line tool (L).");
+        return;
+      }
+      if (key === "r" || key === "m") {
+        e.preventDefault();
+        setImageEditorTool(editorTools.rect);
+        setImageEditorStatus("Box tool (R).");
+        return;
+      }
+      if (key === "t") {
+        e.preventDefault();
+        setImageEditorTool(editorTools.text);
+        setImageEditorStatus("Text tool (T).");
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && key === "z") {
+        e.preventDefault();
+        undoImageEdit();
+        return;
+      }
+      const selected = editorState.objects.find((object) => object.id === editorState.selectedObjectId);
+      if (selected) {
+        if (key === "[") {
+          e.preventDefault();
+          const baseRotation = getEditorObjectRotation(selected);
+          selected.rotation = ((baseRotation - IMAGE_EDITOR_ROTATE_STEP_DEG * Math.PI / 180) + Math.PI * 2) % (Math.PI * 2);
+          pushEditorHistory();
+          renderImageEditor();
+          setImageEditorStatus("Rotate -8.");
+          return;
+        }
+        if (key === "]") {
+          e.preventDefault();
+          const baseRotation = getEditorObjectRotation(selected);
+          selected.rotation = (baseRotation + IMAGE_EDITOR_ROTATE_STEP_DEG * Math.PI / 180) % (Math.PI * 2);
+          pushEditorHistory();
+          renderImageEditor();
+          setImageEditorStatus("Rotate +8.");
+          return;
+        }
+        if (key === "+" || key === "=" || e.code === "NumpadAdd") {
+          e.preventDefault();
+          selected.scale = Math.min(IMAGE_EDITOR_MAX_SCALE, getEditorObjectScale(selected) * IMAGE_EDITOR_SCALE_STEP);
+          pushEditorHistory();
+          renderImageEditor();
+          setImageEditorStatus("Scale up.");
+          return;
+        }
+        if (key === "-" || e.code === "NumpadSubtract") {
+          e.preventDefault();
+          selected.scale = Math.max(IMAGE_EDITOR_MIN_SCALE, getEditorObjectScale(selected) / IMAGE_EDITOR_SCALE_STEP);
+          pushEditorHistory();
+          renderImageEditor();
+          setImageEditorStatus("Scale down.");
+          return;
+        }
+        if (key === "0") {
+          e.preventDefault();
+          selected.rotation = 0;
+          selected.scale = 1;
+          pushEditorHistory();
+          renderImageEditor();
+          setImageEditorStatus("Transform reset.");
+          return;
+        }
+      }
+      if (selected) {
+        if (key === "[") {
+          e.preventDefault();
+          const baseRotation = getEditorObjectRotation(selected);
+          selected.rotation = ((baseRotation - IMAGE_EDITOR_ROTATE_STEP_DEG * Math.PI / 180) + Math.PI * 2) % (Math.PI * 2);
+          pushEditorHistory();
+          renderImageEditor();
+          setImageEditorStatus("Rotate -8°");
+          return;
+        }
+        if (key === "]") {
+          e.preventDefault();
+          const baseRotation = getEditorObjectRotation(selected);
+          selected.rotation = (baseRotation + IMAGE_EDITOR_ROTATE_STEP_DEG * Math.PI / 180) % (Math.PI * 2);
+          pushEditorHistory();
+          renderImageEditor();
+          setImageEditorStatus("Rotate +8°");
+          return;
+        }
+        if (key === "+" || key === "=" || e.code === "NumpadAdd") {
+          e.preventDefault();
+          selected.scale = Math.min(IMAGE_EDITOR_MAX_SCALE, getEditorObjectScale(selected) * IMAGE_EDITOR_SCALE_STEP);
+          pushEditorHistory();
+          renderImageEditor();
+          setImageEditorStatus("Scale up.");
+          return;
+        }
+        if (key === "-" || e.code === "NumpadSubtract") {
+          e.preventDefault();
+          selected.scale = Math.max(IMAGE_EDITOR_MIN_SCALE, getEditorObjectScale(selected) / IMAGE_EDITOR_SCALE_STEP);
+          pushEditorHistory();
+          renderImageEditor();
+          setImageEditorStatus("Scale down.");
+          return;
+        }
+        if (key === "0") {
+          e.preventDefault();
+          selected.rotation = 0;
+          selected.scale = 1;
+          pushEditorHistory();
+          renderImageEditor();
+          setImageEditorStatus("Transform reset.");
+          return;
+        }
+      }
+      if (e.key === "Delete" || e.code === "Delete" || e.key === "Backspace" || e.key === "Del") {
         if (editorState.isTextInputOpen) {
           return;
         }
-        if (editorState.isOpen && e.target && !["INPUT", "TEXTAREA"].includes(e.target.tagName)) {
-          e.preventDefault();
-          deleteSelectedEditorObject();
-        }
+        e.preventDefault();
+        deleteSelectedEditorObject();
       }
     });
 
@@ -1611,6 +1751,8 @@
         color: editorState.color,
         fontSize,
         text,
+        rotation: 0,
+        scale: 1,
       };
       editorState.objects.push(textObject);
       editorState.selectedObjectId = textObject.id;
@@ -1763,8 +1905,17 @@
       imageModalImg.hidden = true;
       imageEditor.setAttribute("aria-hidden", "false");
 
-      editorState.color = imageEditorColorInput?.value || "#ff0000";
-      editorState.strokeSize = parseInt(imageEditorSizeInput?.value, 10) || 7;
+      const defaultEditorColor = "#ff0000";
+      const defaultEditorStrokeSize = 7;
+      const parsedEditorStrokeSize = parseInt(imageEditorSizeInput?.value, 10);
+      editorState.color = imageEditorColorInput?.value || defaultEditorColor;
+      editorState.strokeSize = Number.isFinite(parsedEditorStrokeSize) && parsedEditorStrokeSize > 0 ? parsedEditorStrokeSize : defaultEditorStrokeSize;
+      if (imageEditorColorInput) {
+        imageEditorColorInput.value = editorState.color;
+      }
+      if (imageEditorSizeInput) {
+        imageEditorSizeInput.value = String(editorState.strokeSize);
+      }
       editorState.tool = editorTools.brush;
       editorState.isLoaded = false;
       editorState.isDrawing = false;
@@ -1772,6 +1923,11 @@
       editorState.draggingObjectId = null;
       editorState.dragBaseObject = null;
       editorState.dragMoved = false;
+      editorState.dragMode = null;
+      editorState.dragHandle = null;
+      editorState.dragHandleStartAngle = 0;
+      editorState.dragHandleStartDistance = 0;
+      editorState.dragHandleStartScale = 1;
       editorState.pointerId = null;
       editorState.selectedObjectId = null;
       editorState.history = [];
@@ -1826,39 +1982,141 @@
       return getDistance(pointX, pointY, nearestX, nearestY);
     };
 
-    const getObjectBounds = (object) => {
-      if (!object) return null;
-      if (object.type === editorTools.brush) {
-        if (!object.points?.length) return null;
-        const xs = object.points.map((point) => point.x);
-        const ys = object.points.map((point) => point.y);
-        const minX = Math.min(...xs);
-        const minY = Math.min(...ys);
-        const maxX = Math.max(...xs);
-        const maxY = Math.max(...ys);
+    const getEditorObjectScale = (object) => Math.max(IMAGE_EDITOR_MIN_SCALE, object?.scale == null ? 1 : object.scale);
+    const getEditorObjectRotation = (object) => (object?.rotation == null ? 0 : object.rotation);
+    const getObjectCenter = (object) => {
+      if (!object) return { x: 0, y: 0 };
+      if (object.type === editorTools.text) {
+        const textBounds = (() => {
+          const context = editorState.context;
+          if (!context) return null;
+          const size = object.fontSize || 16;
+          context.save();
+          context.font = `${size}px Arial, sans-serif`;
+          const metrics = context.measureText(object.text || "");
+          context.restore();
+          const width = Math.max(1, metrics.width);
+          const height = Math.max(1, size);
+          return { width, height };
+        })();
+        const width = textBounds?.width || 60;
+        const height = textBounds?.height || 12;
         return {
-          x: minX - object.lineWidth / 2,
-          y: minY - object.lineWidth / 2,
-          width: Math.max(1, maxX - minX + object.lineWidth),
-          height: Math.max(1, maxY - minY + object.lineWidth),
+          x: object.x + width / 2,
+          y: object.y + height / 2,
         };
       }
       if (object.type === editorTools.line) {
         return {
-          x: Math.min(object.x1, object.x2) - object.lineWidth / 2,
-          y: Math.min(object.y1, object.y2) - object.lineWidth / 2,
-          width: Math.abs(object.x2 - object.x1) + object.lineWidth,
-          height: Math.abs(object.y2 - object.y1) + object.lineWidth,
+          x: (object.x1 + object.x2) / 2,
+          y: (object.y1 + object.y2) / 2,
         };
       }
       if (object.type === editorTools.rect) {
         const normalized = normalizeRect(object.x, object.y, object.width, object.height);
         return {
-          ...normalized,
-          x: normalized.x - object.lineWidth / 2,
-          y: normalized.y - object.lineWidth / 2,
-          width: normalized.width + object.lineWidth,
-          height: normalized.height + object.lineWidth,
+          x: normalized.x + normalized.width / 2,
+          y: normalized.y + normalized.height / 2,
+        };
+      }
+      if (object.type === editorTools.brush && object.points?.length) {
+        let minX = object.points[0].x;
+        let minY = object.points[0].y;
+        let maxX = object.points[0].x;
+        let maxY = object.points[0].y;
+        object.points.forEach((point) => {
+          if (point.x < minX) minX = point.x;
+          if (point.y < minY) minY = point.y;
+          if (point.x > maxX) maxX = point.x;
+          if (point.y > maxY) maxY = point.y;
+        });
+        return {
+          x: (minX + maxX) / 2,
+          y: (minY + maxY) / 2,
+        };
+      }
+      return {
+        x: 0,
+        y: 0,
+      };
+    };
+
+    const toEditorLocalPoint = (object, position) => {
+      if (!object || !position) return null;
+      const center = getObjectCenter(object);
+      const scale = getEditorObjectScale(object);
+      const rotation = getEditorObjectRotation(object);
+      const dx = position.x - center.x;
+      const dy = position.y - center.y;
+      const cos = Math.cos(-rotation);
+      const sin = Math.sin(-rotation);
+      return {
+        x: (dx * cos - dy * sin) / scale,
+        y: (dx * sin + dy * cos) / scale,
+      };
+    };
+
+    const toEditorWorldPoint = (object, point) => {
+      if (!object || !point) return null;
+      const center = getObjectCenter(object);
+      const scale = getEditorObjectScale(object);
+      const rotation = getEditorObjectRotation(object);
+      const x = point.x * scale;
+      const y = point.y * scale;
+      const cos = Math.cos(rotation);
+      const sin = Math.sin(rotation);
+      return {
+        x: center.x + x * cos - y * sin,
+        y: center.y + x * sin + y * cos,
+      };
+    };
+
+    const getObjectLineWidth = (object) => Math.max(0.1, object?.lineWidth || editorState.strokeSize);
+    const getObjectBoundsLocal = (object) => {
+      if (!object) return null;
+      if (object.type === editorTools.brush) {
+        if (!object.points?.length) return null;
+        const centeredPoints = object.points.map((point) => {
+          const local = toEditorLocalPoint({ ...object, rotation: 0, scale: 1 }, point);
+          return {
+            x: local?.x ?? 0,
+            y: local?.y ?? 0,
+          };
+        });
+        const minX = Math.min(...centeredPoints.map((point) => point.x));
+        const minY = Math.min(...centeredPoints.map((point) => point.y));
+        const maxX = Math.max(...centeredPoints.map((point) => point.x));
+        const maxY = Math.max(...centeredPoints.map((point) => point.y));
+        return {
+          x: minX - getObjectLineWidth(object) / 2,
+          y: minY - getObjectLineWidth(object) / 2,
+          width: Math.max(1, maxX - minX + getObjectLineWidth(object)),
+          height: Math.max(1, maxY - minY + getObjectLineWidth(object)),
+        };
+      }
+      if (object.type === editorTools.line) {
+        const p1 = toEditorLocalPoint({ ...object, rotation: 0, scale: 1 }, { x: object.x1, y: object.y1 });
+        const p2 = toEditorLocalPoint({ ...object, rotation: 0, scale: 1 }, { x: object.x2, y: object.y2 });
+        if (!p1 || !p2) return null;
+        const w = getObjectLineWidth(object);
+        return {
+          x: Math.min(p1.x, p2.x) - w / 2,
+          y: Math.min(p1.y, p2.y) - w / 2,
+          width: Math.abs(p2.x - p1.x) + w,
+          height: Math.abs(p2.y - p1.y) + w,
+        };
+      }
+      if (object.type === editorTools.rect) {
+        const normalized = normalizeRect(object.x, object.y, object.width, object.height);
+        const center = getObjectCenter(object);
+        const localX = normalized.x - center.x;
+        const localY = normalized.y - center.y;
+        const w = getObjectLineWidth(object);
+        return {
+          x: localX - w / 2,
+          y: localY - w / 2,
+          width: Math.max(1, normalized.width + w),
+          height: Math.max(1, normalized.height + w),
         };
       }
       if (object.type === editorTools.text) {
@@ -1869,28 +2127,63 @@
         context.font = `${fontSize}px Arial, sans-serif`;
         const metrics = context.measureText(object.text || "");
         context.restore();
+        const w = Math.max(1, metrics.width);
+        const h = Math.max(1, fontSize);
         return {
-          x: Math.max(0, object.x - 6),
-          y: Math.max(0, object.y - 6),
-          width: Math.max(1, metrics.width + 12),
-          height: fontSize + 12,
+          x: object.x - getObjectCenter(object).x - w / 2 - 6,
+          y: object.y - getObjectCenter(object).y - 6,
+          width: w + 12,
+          height: h + 12,
         };
       }
       return null;
     };
 
-    const isPointInsideBrushObject = (object, position) => {
-      const lineWidth = object.lineWidth || editorState.strokeSize;
-      const hitTolerance = Math.max(IMAGE_EDITOR_HIT_TOLERANCE, lineWidth + 2);
-      if (!object.points?.length) return false;
-      if (object.points.length === 1) {
-        const point = object.points[0];
-        return getDistance(position.x, position.y, point.x, point.y) <= hitTolerance;
+    const getObjectBounds = (object) => {
+      const local = getObjectBoundsLocal(object);
+      if (!local) return null;
+      if (Math.abs(object.rotation || 0) < 0.0001 && getEditorObjectScale(object) === 1) {
+        const center = getObjectCenter(object);
+        return {
+          x: local.x + center.x,
+          y: local.y + center.y,
+          width: local.width,
+          height: local.height,
+        };
       }
-      for (let index = 1; index < object.points.length; index += 1) {
-        const start = object.points[index - 1];
-        const end = object.points[index];
-        if (getDistanceToSegment(position.x, position.y, start.x, start.y, end.x, end.y) <= hitTolerance) {
+      const corners = [
+        { x: local.x, y: local.y },
+        { x: local.x + local.width, y: local.y },
+        { x: local.x + local.width, y: local.y + local.height },
+        { x: local.x, y: local.y + local.height },
+      ];
+      const points = corners.map((corner) => toEditorWorldPoint(object, corner));
+      const valid = points.filter(Boolean);
+      if (!valid.length) return null;
+      return {
+        x: Math.min(...valid.map((point) => point.x)),
+        y: Math.min(...valid.map((point) => point.y)),
+        width: Math.max(...valid.map((point) => point.x)) - Math.min(...valid.map((point) => point.x)),
+        height: Math.max(...valid.map((point) => point.y)) - Math.min(...valid.map((point) => point.y)),
+      };
+    };
+
+    const isPointInsideBrushObject = (object, position) => {
+      const local = toEditorLocalPoint(object, position);
+      if (!local || !object.points?.length) return false;
+      const localLineWidth = getObjectLineWidth(object) / getEditorObjectScale(object);
+      const hitTolerance = Math.max(IMAGE_EDITOR_HIT_TOLERANCE, localLineWidth + 2);
+      const normalizedPoints = object.points.map((point) => toEditorLocalPoint({ ...object, rotation: 0, scale: 1 }, point));
+      const localPoints = normalizedPoints.filter(Boolean);
+      if (!localPoints.length) return false;
+      if (localPoints.length === 1) {
+        const point = localPoints[0];
+        return getDistance(local.x, local.y, point.x, point.y) <= hitTolerance;
+      }
+      for (let index = 1; index < localPoints.length; index += 1) {
+        const start = localPoints[index - 1];
+        const end = localPoints[index];
+        if (getDistanceToSegment(local.x, local.y, start.x, start.y, end.x, end.y) <= hitTolerance) {
           return true;
         }
       }
@@ -1898,32 +2191,41 @@
     };
 
     const isPointInsideLineObject = (object, position) => {
-      const lineWidth = object.lineWidth || editorState.strokeSize;
-      const hitTolerance = Math.max(IMAGE_EDITOR_HIT_TOLERANCE, lineWidth + 2);
-      return getDistanceToSegment(position.x, position.y, object.x1, object.y1, object.x2, object.y2) <= hitTolerance;
+      const local = toEditorLocalPoint(object, position);
+      if (!local) return false;
+      const p1 = toEditorLocalPoint({ ...object, rotation: 0, scale: 1 }, { x: object.x1, y: object.y1 });
+      const p2 = toEditorLocalPoint({ ...object, rotation: 0, scale: 1 }, { x: object.x2, y: object.y2 });
+      if (!p1 || !p2) return false;
+      const localLineWidth = getObjectLineWidth(object) / getEditorObjectScale(object);
+      const hitTolerance = Math.max(IMAGE_EDITOR_HIT_TOLERANCE, localLineWidth + 2);
+      return getDistanceToSegment(local.x, local.y, p1.x, p1.y, p2.x, p2.y) <= hitTolerance;
     };
 
     const isPointInsideRectObject = (object, position) => {
-      const bounds = getObjectBounds(object);
-      if (!bounds) return false;
-      const hitTolerance = Math.max(IMAGE_EDITOR_HIT_TOLERANCE, object.lineWidth / 2 + 2);
+      const local = toEditorLocalPoint(object, position);
+      const localBounds = getObjectBoundsLocal(object);
+      if (!local || !localBounds) return false;
+      const localLineWidth = getObjectLineWidth(object) / getEditorObjectScale(object);
+      const hitTolerance = Math.max(IMAGE_EDITOR_HIT_TOLERANCE, localLineWidth + 2);
       return (
-        position.x >= bounds.x - hitTolerance
-        && position.x <= bounds.x + bounds.width + hitTolerance
-        && position.y >= bounds.y - hitTolerance
-        && position.y <= bounds.y + bounds.height + hitTolerance
+        local.x >= localBounds.x - hitTolerance
+        && local.x <= localBounds.x + localBounds.width + hitTolerance
+        && local.y >= localBounds.y - hitTolerance
+        && local.y <= localBounds.y + localBounds.height + hitTolerance
       );
     };
 
     const isPointInsideTextObject = (object, position) => {
-      const bounds = getObjectBounds(object);
-      if (!bounds) return false;
-      const hitTolerance = IMAGE_EDITOR_HIT_TOLERANCE + 6;
+      const local = toEditorLocalPoint(object, position);
+      const localBounds = getObjectBoundsLocal(object);
+      if (!local || !localBounds) return false;
+      const fontScale = Math.max(0.1, 1 / getEditorObjectScale(object));
+      const hitTolerance = Math.max(IMAGE_EDITOR_HIT_TOLERANCE, 6 * fontScale);
       return (
-        position.x >= bounds.x - hitTolerance
-        && position.x <= bounds.x + bounds.width + hitTolerance
-        && position.y >= bounds.y - hitTolerance
-        && position.y <= bounds.y + bounds.height + hitTolerance
+        local.x >= localBounds.x - hitTolerance
+        && local.x <= localBounds.x + localBounds.width + hitTolerance
+        && local.y >= localBounds.y - hitTolerance
+        && local.y <= localBounds.y + localBounds.height + hitTolerance
       );
     };
 
@@ -1949,48 +2251,119 @@
     const applyEditorObjectStyle = (context, object) => {
       context.strokeStyle = object.color;
       context.fillStyle = object.color;
-      context.lineWidth = object.lineWidth;
+      context.lineWidth = getObjectLineWidth(object);
       context.lineCap = "round";
       context.lineJoin = "round";
     };
 
     const renderEditorObject = (context, object) => {
       if (!object) return;
+      const center = getObjectCenter(object);
+      const rotation = getEditorObjectRotation(object);
+      const scale = getEditorObjectScale(object);
       applyEditorObjectStyle(context, object);
+      context.save();
+      context.translate(center.x, center.y);
+      if (rotation !== 0) context.rotate(rotation);
+      if (scale !== 1) context.scale(scale, scale);
       if (object.type === editorTools.brush) {
-        if (!object.points?.length) return;
+        if (!object.points?.length) {
+          context.restore();
+          return;
+        }
+        const normalizedPoints = object.points.map((point) => ({
+          x: point.x - center.x,
+          y: point.y - center.y,
+        }));
         context.beginPath();
-        const first = object.points[0];
+        const first = normalizedPoints[0];
         context.moveTo(first.x, first.y);
-        object.points.slice(1).forEach((point) => {
+        normalizedPoints.slice(1).forEach((point) => {
           context.lineTo(point.x, point.y);
         });
         context.stroke();
-        return;
-      }
-      if (object.type === editorTools.line) {
+      } else if (object.type === editorTools.line) {
+        const start = {
+          x: object.x1 - center.x,
+          y: object.y1 - center.y,
+        };
+        const end = {
+          x: object.x2 - center.x,
+          y: object.y2 - center.y,
+        };
         context.beginPath();
-        context.moveTo(object.x1, object.y1);
-        context.lineTo(object.x2, object.y2);
+        context.moveTo(start.x, start.y);
+        context.lineTo(end.x, end.y);
         context.stroke();
-        return;
-      }
-      if (object.type === editorTools.rect) {
+      } else if (object.type === editorTools.rect) {
         const normalized = normalizeRect(object.x, object.y, object.width, object.height);
-        context.strokeRect(normalized.x, normalized.y, normalized.width, normalized.height);
-        return;
-      }
-      if (object.type === editorTools.text) {
+        context.strokeRect(normalized.x - center.x, normalized.y - center.y, normalized.width, normalized.height);
+      } else if (object.type === editorTools.text) {
         const fontSize = object.fontSize || 16;
         context.font = `${fontSize}px Arial, sans-serif`;
         context.textBaseline = "top";
-        context.fillText(object.text || "", object.x, object.y);
+        context.fillText(object.text || "", object.x - center.x, object.y - center.y);
       }
+      context.restore();
     };
 
     const renderEditorSelection = (context, object) => {
       const bounds = getObjectBounds(object);
       if (!bounds) return;
+      const worldScale = getEditorObjectScale(object);
+      const local = getObjectBoundsLocal(object);
+      const selectionPadding = 4;
+      const rotateHandleOffset = 24;
+      const localHandle = Math.max(5, IMAGE_EDITOR_HANDLE_SIZE / Math.max(worldScale, 0.2));
+      const rotationHandleOffset = Math.max(12, rotateHandleOffset / Math.max(worldScale, 0.2));
+      const center = getObjectCenter(object);
+      const rotation = getEditorObjectRotation(object);
+      if (local) {
+        context.save();
+        context.translate(center.x, center.y);
+        context.rotate(rotation);
+        context.scale(worldScale, worldScale);
+        context.setLineDash([6, 4]);
+        context.strokeStyle = "rgba(95, 209, 255, 0.9)";
+        context.lineWidth = 1 / worldScale;
+        context.strokeRect(
+          local.x - selectionPadding / worldScale,
+          local.y - selectionPadding / worldScale,
+          local.width + (selectionPadding * 2) / worldScale,
+          local.height + (selectionPadding * 2) / worldScale,
+        );
+        context.setLineDash([]);
+        context.fillStyle = "rgba(95, 209, 255, 0.15)";
+        context.fillRect(
+          local.x - 3 / worldScale,
+          local.y - 3 / worldScale,
+          local.width + 6 / worldScale,
+          local.height + 6 / worldScale,
+        );
+
+        const handles = [
+          { x: local.x, y: local.y },
+          { x: local.x + local.width, y: local.y },
+          { x: local.x + local.width, y: local.y + local.height },
+          { x: local.x, y: local.y + local.height },
+        ];
+        const rotateHandle = {
+          x: local.x + local.width / 2,
+          y: local.y - rotationHandleOffset / worldScale,
+        };
+        context.fillStyle = "#f7fbff";
+        handles.forEach((handle) => {
+          context.fillRect(handle.x - localHandle / 2, handle.y - localHandle / 2, localHandle, localHandle);
+        });
+        context.fillRect(
+          rotateHandle.x - localHandle / 2,
+          rotateHandle.y - localHandle / 2,
+          localHandle,
+          localHandle,
+        );
+        context.restore();
+        return;
+      }
       context.save();
       context.setLineDash([6, 4]);
       context.strokeStyle = "rgba(95, 209, 255, 0.9)";
@@ -2021,6 +2394,45 @@
         object.x = baseObject.x + deltaX;
         object.y = baseObject.y + deltaY;
       }
+    };
+
+    const getSelectionHandleForPosition = (object, position) => {
+      if (!object || !position) return null;
+      const local = toEditorLocalPoint(object, position);
+      const localBounds = getObjectBoundsLocal(object);
+      if (!local || !localBounds) return null;
+      const worldScale = getEditorObjectScale(object);
+      const handleSize = Math.max(6, IMAGE_EDITOR_HANDLE_SIZE / Math.max(worldScale, 0.2));
+      const rotateOffset = Math.max(18, 22 / Math.max(worldScale, 0.2));
+      const rotatePoint = {
+        x: localBounds.x + localBounds.width / 2,
+        y: localBounds.y - rotateOffset,
+      };
+      const corners = [
+        { id: "scale", x: localBounds.x, y: localBounds.y },
+        { id: "scale", x: localBounds.x + localBounds.width, y: localBounds.y },
+        { id: "scale", x: localBounds.x + localBounds.width, y: localBounds.y + localBounds.height },
+        { id: "scale", x: localBounds.x, y: localBounds.y + localBounds.height },
+      ];
+      for (const handle of corners) {
+        if (
+          local.x >= handle.x - handleSize
+          && local.x <= handle.x + handleSize
+          && local.y >= handle.y - handleSize
+          && local.y <= handle.y + handleSize
+        ) {
+          return "scale";
+        }
+      }
+      if (
+        local.x >= rotatePoint.x - handleSize
+        && local.x <= rotatePoint.x + handleSize
+        && local.y >= rotatePoint.y - handleSize
+        && local.y <= rotatePoint.y + handleSize
+      ) {
+        return "rotate";
+      }
+      return null;
     };
 
     const getEditorPointerPosition = (event) => {
@@ -2070,14 +2482,39 @@
 
       const movingObject = editorState.objects.find((object) => object.id === editorState.draggingObjectId);
       if (movingObject && editorState.dragBaseObject) {
-        const deltaX = position.x - editorState.dragStartX;
-        const deltaY = position.y - editorState.dragStartY;
-        const moveDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-        if (moveDistance < IMAGE_EDITOR_MIN_MOVE_PX) return;
-        editorState.dragMoved = true;
-        moveEditorObject(movingObject, editorState.dragBaseObject, deltaX, deltaY);
-        renderImageEditor();
-        return;
+        if (editorState.dragMode === "move") {
+          const deltaX = position.x - editorState.dragStartX;
+          const deltaY = position.y - editorState.dragStartY;
+          const moveDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+          if (moveDistance < IMAGE_EDITOR_MIN_MOVE_PX) return;
+          editorState.dragMoved = true;
+          moveEditorObject(movingObject, editorState.dragBaseObject, deltaX, deltaY);
+          renderImageEditor();
+          return;
+        }
+        if (editorState.dragMode === "scale") {
+          const local = toEditorLocalPoint(editorState.dragBaseObject, position);
+          if (!local) return;
+          const distance = Math.max(4, Math.hypot(local.x, local.y));
+          const nextScale = Math.min(
+            IMAGE_EDITOR_MAX_SCALE,
+            Math.max(IMAGE_EDITOR_MIN_SCALE, editorState.dragHandleStartScale * (distance / editorState.dragHandleStartDistance)),
+          );
+          movingObject.scale = nextScale;
+          editorState.dragMoved = true;
+          renderImageEditor();
+          return;
+        }
+        if (editorState.dragMode === "rotate") {
+          const local = toEditorLocalPoint(editorState.dragBaseObject, position);
+          if (!local) return;
+          const angle = Math.atan2(local.y, local.x);
+          const nextRotation = editorState.dragHandleStartRotation + (angle - editorState.dragHandleStartAngle);
+          movingObject.rotation = nextRotation % (Math.PI * 2);
+          editorState.dragMoved = true;
+          renderImageEditor();
+          return;
+        }
       }
 
       if (!editorState.draftObject) return;
@@ -2130,14 +2567,26 @@
       editorState.draftObject = null;
 
       if (movingObjectId && editorState.dragBaseObject) {
+        const dragMode = editorState.dragMode;
         editorState.dragBaseObject = null;
         if (editorState.dragMoved) {
+          if (dragMode === "scale") {
+            setImageEditorStatus("Object resized.");
+          } else if (dragMode === "rotate") {
+            setImageEditorStatus("Object rotated.");
+          } else {
+            setImageEditorStatus("Object moved.");
+          }
           pushEditorHistory();
-          setImageEditorStatus("Object moved.");
         } else {
           setImageEditorStatus("Object selected.");
         }
+        editorState.dragMode = null;
+        editorState.dragHandle = null;
         editorState.dragMoved = false;
+        editorState.dragHandleStartAngle = 0;
+        editorState.dragHandleStartDistance = 0;
+        editorState.dragHandleStartScale = 1;
         return;
       }
 
@@ -2210,9 +2659,38 @@
       }
 
       if (hitObject) {
+        if (editorState.tool === editorTools.select) {
+          const handle = getSelectionHandleForPosition(hitObject, position);
+          if (handle) {
+            editorState.isDrawing = true;
+            editorState.draggingObjectId = hitObject.id;
+            editorState.dragBaseObject = cloneEditorObject(hitObject);
+            editorState.dragMode = handle;
+            editorState.dragHandle = handle;
+            editorState.dragStartX = position.x;
+            editorState.dragStartY = position.y;
+            editorState.startX = position.x;
+            editorState.startY = position.y;
+            editorState.dragMoved = false;
+            editorState.dragHandleStartScale = getEditorObjectScale(hitObject);
+            editorState.dragHandleStartRotation = getEditorObjectRotation(hitObject);
+            if (handle === "rotate") {
+              const local = toEditorLocalPoint(hitObject, position);
+              editorState.dragHandleStartAngle = local ? Math.atan2(local.y, local.x) : 0;
+              editorState.dragHandleStartDistance = 1;
+            } else {
+              const local = toEditorLocalPoint(hitObject, position);
+              editorState.dragHandleStartDistance = local ? Math.hypot(local.x, local.y) : 1;
+            }
+            renderImageEditor();
+            setImageEditorStatus(handle === "rotate" ? "Rotate mode." : "Scale mode.");
+            return;
+          }
+        }
         editorState.isDrawing = true;
         editorState.draggingObjectId = hitObject.id;
         editorState.dragBaseObject = cloneEditorObject(hitObject);
+        editorState.dragMode = "move";
         editorState.dragStartX = position.x;
         editorState.dragStartY = position.y;
         editorState.startX = position.x;
@@ -2232,6 +2710,8 @@
         type: editorState.tool,
         color: editorState.color,
         lineWidth: editorState.strokeSize,
+        rotation: 0,
+        scale: 1,
       };
       if (editorState.tool === editorTools.brush) {
         draftObject.points = [position];
@@ -2312,6 +2792,11 @@
       editorState.draggingObjectId = null;
       editorState.dragBaseObject = null;
       editorState.dragMoved = false;
+      editorState.dragMode = null;
+      editorState.dragHandle = null;
+      editorState.dragHandleStartAngle = 0;
+      editorState.dragHandleStartDistance = 0;
+      editorState.dragHandleStartScale = 1;
       editorState.pointerId = null;
       editorState.history = [];
       editorState.selectedObjectId = null;
