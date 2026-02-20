@@ -997,6 +997,8 @@
     const IMAGE_EDITOR_HIT_TOLERANCE = 10;
     const IMAGE_EDITOR_MIN_MOVE_PX = 2;
     const IMAGE_EDITOR_HANDLE_SIZE = 10;
+    const IMAGE_EDITOR_HANDLE_TOLERANCE = 14;
+    const IMAGE_EDITOR_HANDLE_DEBUG = new URLSearchParams(window.location.search).has("debugHandles");
     const IMAGE_EDITOR_MIN_SCALE = 0.1;
     const IMAGE_EDITOR_MAX_SCALE = 30;
     const IMAGE_EDITOR_SCALE_STEP = 1.12;
@@ -1486,7 +1488,7 @@
           return;
         }
       }
-      if (selected) {
+      if (false && selected) {
         if (key === "[") {
           e.preventDefault();
           const baseRotation = getEditorObjectRotation(selected);
@@ -1537,6 +1539,11 @@
         }
         e.preventDefault();
         deleteSelectedEditorObject();
+      }
+      if (key === "?") {
+        e.preventDefault();
+        setImageEditorStatus("Shortcuts: V(select), B/P(brush), L(line), R(rect), T(text), [ ], +/-, 0(reset), Delete/Backspace(remove), Esc(cancel text), Ctrl/Cmd+Z(undo).");
+        return;
       }
     });
 
@@ -2403,6 +2410,7 @@
       if (!local || !localBounds) return null;
       const worldScale = getEditorObjectScale(object);
       const handleSize = Math.max(6, IMAGE_EDITOR_HANDLE_SIZE / Math.max(worldScale, 0.2));
+      const hitRadius = Math.max(IMAGE_EDITOR_HANDLE_TOLERANCE / Math.max(worldScale, 0.2), handleSize);
       const rotateOffset = Math.max(18, 22 / Math.max(worldScale, 0.2));
       const rotatePoint = {
         x: localBounds.x + localBounds.width / 2,
@@ -2416,19 +2424,19 @@
       ];
       for (const handle of corners) {
         if (
-          local.x >= handle.x - handleSize
-          && local.x <= handle.x + handleSize
-          && local.y >= handle.y - handleSize
-          && local.y <= handle.y + handleSize
+          local.x >= handle.x - hitRadius
+          && local.x <= handle.x + hitRadius
+          && local.y >= handle.y - hitRadius
+          && local.y <= handle.y + hitRadius
         ) {
           return "scale";
         }
       }
       if (
-        local.x >= rotatePoint.x - handleSize
-        && local.x <= rotatePoint.x + handleSize
-        && local.y >= rotatePoint.y - handleSize
-        && local.y <= rotatePoint.y + handleSize
+        local.x >= rotatePoint.x - hitRadius
+        && local.x <= rotatePoint.x + hitRadius
+        && local.y >= rotatePoint.y - hitRadius
+        && local.y <= rotatePoint.y + hitRadius
       ) {
         return "rotate";
       }
@@ -2649,44 +2657,64 @@
       }
 
       const hitObject = hitTestEditorObject(position);
+      if (IMAGE_EDITOR_HANDLE_DEBUG) {
+        console.debug("[ImageEditorHandle] pointerdown", {
+          position,
+          selectedObjectId: editorState.selectedObjectId,
+          hitObjectId: hitObject ? hitObject.id : null,
+        });
+      }
       if (editorState.tool === editorTools.select) {
-        editorState.selectedObjectId = hitObject ? hitObject.id : null;
+        const selectedObject = editorState.selectedObjectId
+          ? editorState.objects.find((object) => object.id === editorState.selectedObjectId) || null
+          : null;
+        const selectedHandle = selectedObject ? getSelectionHandleForPosition(selectedObject, position) : null;
+        const directHandle = hitObject ? getSelectionHandleForPosition(hitObject, position) : null;
+        if (IMAGE_EDITOR_HANDLE_DEBUG) {
+          console.debug("[ImageEditorHandle] checks", {
+            selectedObjectId: selectedObject ? selectedObject.id : null,
+            selectedHandle,
+            hitObjectId: hitObject ? hitObject.id : null,
+            directHandle,
+          });
+        }
+        const handle = selectedHandle || directHandle;
+        const handleOwner = selectedHandle ? selectedObject : hitObject;
+        if (handle && handleOwner) {
+          editorState.isDrawing = true;
+          editorState.draggingObjectId = handleOwner.id;
+          editorState.dragBaseObject = cloneEditorObject(handleOwner);
+          editorState.dragMode = handle;
+          editorState.dragHandle = handle;
+          editorState.dragStartX = position.x;
+          editorState.dragStartY = position.y;
+          editorState.startX = position.x;
+          editorState.startY = position.y;
+          editorState.dragMoved = false;
+          editorState.dragHandleStartScale = getEditorObjectScale(handleOwner);
+          editorState.dragHandleStartRotation = getEditorObjectRotation(handleOwner);
+          if (handle === "rotate") {
+            const local = toEditorLocalPoint(handleOwner, position);
+            editorState.dragHandleStartAngle = local ? Math.atan2(local.y, local.x) : 0;
+            editorState.dragHandleStartDistance = 1;
+          } else {
+            const local = toEditorLocalPoint(handleOwner, position);
+            editorState.dragHandleStartDistance = local ? Math.hypot(local.x, local.y) : 1;
+          }
+          renderImageEditor();
+          setImageEditorStatus(handle === "rotate" ? "Rotate mode." : "Scale mode.");
+          return;
+        }
         if (!hitObject) {
+          editorState.selectedObjectId = null;
           renderImageEditor();
           setImageEditorStatus("Select mode: click an object to move.");
           return;
         }
+        editorState.selectedObjectId = hitObject.id;
       }
 
       if (hitObject) {
-        if (editorState.tool === editorTools.select) {
-          const handle = getSelectionHandleForPosition(hitObject, position);
-          if (handle) {
-            editorState.isDrawing = true;
-            editorState.draggingObjectId = hitObject.id;
-            editorState.dragBaseObject = cloneEditorObject(hitObject);
-            editorState.dragMode = handle;
-            editorState.dragHandle = handle;
-            editorState.dragStartX = position.x;
-            editorState.dragStartY = position.y;
-            editorState.startX = position.x;
-            editorState.startY = position.y;
-            editorState.dragMoved = false;
-            editorState.dragHandleStartScale = getEditorObjectScale(hitObject);
-            editorState.dragHandleStartRotation = getEditorObjectRotation(hitObject);
-            if (handle === "rotate") {
-              const local = toEditorLocalPoint(hitObject, position);
-              editorState.dragHandleStartAngle = local ? Math.atan2(local.y, local.x) : 0;
-              editorState.dragHandleStartDistance = 1;
-            } else {
-              const local = toEditorLocalPoint(hitObject, position);
-              editorState.dragHandleStartDistance = local ? Math.hypot(local.x, local.y) : 1;
-            }
-            renderImageEditor();
-            setImageEditorStatus(handle === "rotate" ? "Rotate mode." : "Scale mode.");
-            return;
-          }
-        }
         editorState.isDrawing = true;
         editorState.draggingObjectId = hitObject.id;
         editorState.dragBaseObject = cloneEditorObject(hitObject);
