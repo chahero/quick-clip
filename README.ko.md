@@ -60,3 +60,12 @@
 ![업로드 및 복사](./docs/screenshots/upload.png)
 ![갤러리 및 다중 삭제](./docs/screenshots/gallery.png)
 
+## 이미지 편집기
+- 이미지 미리보기 모달에서 바로 편집 가능
+  - 도구: 브러시(P), 선(L), 사각형(B), 텍스트(T), 선택(V)
+  - 객체 이동, 크기 조절, 회전
+  - 선택 객체 삭제, 실행 취소, 편집 저장
+  - 단축키는 툴/액션 버튼 라벨에 표시
+
+![이미지 미리보기 모달](./docs/screenshots/image_preview.png)
+![이미지 편집기 화면](./docs/screenshots/image_edit.png)

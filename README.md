@@ -58,6 +58,11 @@ LOCAL_BUCKET_RELOAD=true
   - bulk delete confirmation
   - mobile-friendly layout for gallery actions
 - `/purge` endpoint exists on backend, but the UI keeps multi-select delete as the main bulk deletion flow.
+- **Image editor modal** in image preview:
+  - Drawing tools for brush, line, rectangle, and text.
+  - Select mode with move/resize/rotate handles.
+  - Object selection and deletion, plus undo support.
+  - Keyboard shortcuts: `V` (select), `P` (brush), `L` (line), `B` (rect), `T` (text), `Del/Backspace` (delete), `Ctrl/Cmd+Z` (undo).
 
 ## Endpoints
 
@@ -74,3 +79,5 @@ LOCAL_BUCKET_RELOAD=true
 
 ![Upload and copy](./docs/screenshots/upload.png)
 ![Gallery and bulk actions](./docs/screenshots/gallery.png)
+![Image preview modal](./docs/screenshots/image_preview.png)
+![Image editor in action](./docs/screenshots/image_edit.png)
