@@ -865,11 +865,11 @@
 
         <div id="image-editor" class="image-editor" aria-hidden="true">
           <div class="image-editor-tools">
-            <button id="image-editor-tool-select" class="small-btn image-editor-tool-btn" type="button">Select</button>
-            <button id="image-editor-tool-brush" class="small-btn image-editor-tool-btn active" type="button">Pen</button>
-            <button id="image-editor-tool-line" class="small-btn image-editor-tool-btn" type="button">Line</button>
-            <button id="image-editor-tool-rect" class="small-btn image-editor-tool-btn" type="button">Box</button>
-            <button id="image-editor-tool-text" class="small-btn image-editor-tool-btn" type="button">Text</button>
+            <button id="image-editor-tool-select" class="small-btn image-editor-tool-btn" type="button" title="Select (V)">Select (V)</button>
+            <button id="image-editor-tool-brush" class="small-btn image-editor-tool-btn active" type="button" title="Pen (P)">Pen (P)</button>
+            <button id="image-editor-tool-line" class="small-btn image-editor-tool-btn" type="button" title="Line (L)">Line (L)</button>
+            <button id="image-editor-tool-rect" class="small-btn image-editor-tool-btn" type="button" title="Box (B)">Box (B)</button>
+            <button id="image-editor-tool-text" class="small-btn image-editor-tool-btn" type="button" title="Text (T)">Text (T)</button>
           </div>
           <div class="image-editor-controls">
             <label for="image-editor-color">
@@ -893,9 +893,9 @@
             hidden
           />
           <div class="modal-actions">
-            <button id="image-editor-undo-btn" class="small-btn secondary" type="button">Undo</button>
+            <button id="image-editor-undo-btn" class="small-btn secondary" type="button" title="Undo (Ctrl/Cmd+Z)">Undo (Ctrl/Cmd+Z)</button>
             <button id="image-editor-clear-btn" class="small-btn secondary" type="button">Clear</button>
-            <button id="image-editor-delete-btn" class="small-btn danger" type="button">Delete</button>
+            <button id="image-editor-delete-btn" class="small-btn danger" type="button" title="Delete (Delete/Backspace)">Delete (Del/Backspace)</button>
             <button id="image-editor-save-btn" class="small-btn btn" type="button">Save</button>
             <button id="image-editor-cancel-btn" class="small-btn danger" type="button">Cancel</button>
           </div>
@@ -1413,7 +1413,7 @@
         setImageEditorStatus("Select tool (V).");
         return;
       }
-      if (key === "p" || key === "b") {
+      if (key === "p") {
         e.preventDefault();
         setImageEditorTool(editorTools.brush);
         setImageEditorStatus("Pen tool (P).");
@@ -1425,10 +1425,10 @@
         setImageEditorStatus("Line tool (L).");
         return;
       }
-      if (key === "r" || key === "m") {
+      if (key === "b") {
         e.preventDefault();
         setImageEditorTool(editorTools.rect);
-        setImageEditorStatus("Box tool (R).");
+        setImageEditorStatus("Box tool (B).");
         return;
       }
       if (key === "t") {
@@ -1542,7 +1542,7 @@
       }
       if (key === "?") {
         e.preventDefault();
-        setImageEditorStatus("Shortcuts: V(select), B/P(brush), L(line), R(rect), T(text), [ ], +/-, 0(reset), Delete/Backspace(remove), Esc(cancel text), Ctrl/Cmd+Z(undo).");
+        setImageEditorStatus("Shortcuts: V(select), P(brush), L(line), B(rect), T(text), [ ], +/-, 0(reset), Delete/Backspace(remove), Esc(cancel text), Ctrl/Cmd+Z(undo).");
         return;
       }
     });
